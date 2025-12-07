@@ -1,7 +1,9 @@
 "use client";
+import AdmissionTakenPage from "@/components/AdmissionPage";
 import BookingPanel from "@/components/BookingPanel";
 import CmsEditor from "@/components/CmsEditor";
 import CoursesPanel from "@/components/CoursePanel";
+import CreateCourse from "@/components/CreateCourse";
 import FeesPanel from "@/components/FeesPanel";
 import MaterialsPanel from "@/components/MaterialPanel";
 import ReviewsPanel from "@/components/ReviewsPanel";
@@ -13,6 +15,8 @@ const SECTIONS = [
   "Homepage CMS",
   "Students",
   "Courses",
+  "AdmissionPage",
+  "CreateCourse",
   "Study Materials",
   "Fees Management",
   "Consultation Bookings",
@@ -50,6 +54,8 @@ export default function AdminDashboard() {
           {section === "Homepage CMS" && <CmsEditor />}
           {section === "Students" && <StudentsTable />}
           {section === "Courses" && <CoursesPanel />}
+          {section === "CreateCourse" && <CreateCourse />}
+          {section === "AdmissionPage" && <AdmissionTakenPage />}
           {section === "Study Materials" && <MaterialsPanel />}
           {section === "Fees Management" && <FeesPanel />}
           {section === "Consultation Bookings" && <BookingPanel />}
