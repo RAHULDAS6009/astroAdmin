@@ -69,50 +69,55 @@ function LatestUpdatesSection() {
   };
 
   return (
-    <div className="p-6 bg-white shadow rounded-lg">
-      <h2 className="text-xl font-semibold mb-4">Latest Updates (Images)</h2>
+    <div className="w-full border-y flex justify-center p-6">
+      <div className=" p-6 bg-white shadow rounded-lg">
+        <h2 className="text-xl font-semibold mb-4">Latest Updates (Images)</h2>
 
-      {/* Upload Section */}
-      <div className="mb-6">
-        <ImageUpload onFileChange={handleFileSelect} showUploadButton={false} />
+        {/* Upload Section */}
+        <div className="mb-6">
+          <ImageUpload
+            onFileChange={handleFileSelect}
+            showUploadButton={false}
+          />
 
-        <button
-          onClick={uploadImage}
-          disabled={!selectedFile || uploading}
-          className="mt-3 px-4 py-2 bg-indigo-600 text-white rounded disabled:opacity-50"
-        >
-          {uploading ? "Uploading..." : "Add to Latest Updates"}
-        </button>
-      </div>
-
-      {/* Images Grid */}
-      <h3 className="text-lg font-medium mb-2">Uploaded Images</h3>
-
-      {images.length === 0 && (
-        <p className="text-gray-500 text-sm">No images uploaded yet.</p>
-      )}
-
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
-        {images.map((img) => (
-          <div
-            key={img.id}
-            className="border rounded-lg overflow-hidden shadow-sm bg-gray-50 relative group"
+          <button
+            onClick={uploadImage}
+            disabled={!selectedFile || uploading}
+            className="mt-3 px-4 py-2 bg-indigo-600 text-white rounded disabled:opacity-50"
           >
-            <img
-              src={img.url}
-              alt="uploaded"
-              className="w-full h-32 object-cover cursor-pointer"
-              onClick={() => window.open(img.url, "_blank")}
-            />
+            {uploading ? "Uploading..." : "Add to Latest Updates"}
+          </button>
+        </div>
 
-            <button
-              onClick={() => deleteImage(img.id)}
-              className="absolute top-2 right-2 bg-red-600 text-white rounded px-2 py-1 text-xs opacity-0 group-hover:opacity-100 transition"
+        {/* Images Grid */}
+        <h3 className="text-lg font-medium mb-2">Uploaded Images</h3>
+
+        {images.length === 0 && (
+          <p className="text-gray-500 text-sm">No images uploaded yet.</p>
+        )}
+
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
+          {images.map((img) => (
+            <div
+              key={img.id}
+              className="border rounded-lg overflow-hidden shadow-sm bg-gray-50 relative group"
             >
-              Delete
-            </button>
-          </div>
-        ))}
+              <img
+                src={img.url}
+                alt="uploaded"
+                className="w-full h-32 object-cover cursor-pointer"
+                onClick={() => window.open(img.url, "_blank")}
+              />
+
+              <button
+                onClick={() => deleteImage(img.id)}
+                className="absolute top-2 right-2 bg-red-600 text-white rounded px-2 py-1 text-xs opacity-0 group-hover:opacity-100 transition"
+              >
+                Delete
+              </button>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
