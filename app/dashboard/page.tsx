@@ -5,14 +5,16 @@ import CmsEditor from "@/components/CmsEditor";
 import CoursesPanel from "@/components/CoursePanel";
 import CreateCourse from "@/components/CreateCourse";
 import FeesPanel from "@/components/FeesPanel";
+import HomePage from "@/components/HomePage";
 import MaterialsPanel from "@/components/MaterialPanel";
 import ReviewsPanel from "@/components/ReviewsPanel";
+import SaveContent from "@/components/SaveContent";
 import SideBar from "@/components/SideBar";
 import StudentsTable from "@/components/StudentTable";
 import { useState } from "react";
 
 const SECTIONS = [
-  "Homepage CMS",
+  "Homepage",
   "Students",
   "Courses",
   "AdmissionPage",
@@ -51,7 +53,7 @@ export default function AdminDashboard() {
         </header>
 
         <section className="bg-white rounded shadow p-6">
-          {section === "Homepage CMS" && <CmsEditor />}
+          {section === "Homepage" && <HomePage />}
           {section === "Students" && <StudentsTable />}
           {section === "Courses" && <CoursesPanel />}
           {section === "CreateCourse" && <CreateCourse />}
