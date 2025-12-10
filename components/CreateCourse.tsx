@@ -2,83 +2,77 @@ import React, { useState } from "react";
 import { Plus, Trash2, Save } from "lucide-react";
 
 // Types
-type CourseType = "ONLINE" | "OFFLINE";
-type OnlineBranchType = "SHORT_DURATION" | "LONG_DURATION";
+export type CourseType = "ONLINE" | "OFFLINE";
+export type ClassType = "WEEKLY" | "MONTHLY";
 
-interface ClassFrequency {
-  type: "WEEKLY" | "MONTHLY";
-  daysPerWeek?: number;
-  classesPerMonth?: number;
+export interface DaysJson {
+  mon?: boolean;
+  tue?: boolean;
+  wed?: boolean;
+  thu?: boolean;
+  fri?: boolean;
+  sat?: boolean;
+  sun?: boolean;
 }
 
-interface ClassTime {
-  hours: number;
-}
+export interface Semester {
+  id: string;
+  name: string;
+  startDate: string;
+  endDate: string;
 
-interface DaySchedule {
-  day: string;
-  start: string;
-  end: string;
-}
-
-interface Fees {
-  semesterNumber: number;
-  admissionFees: number;
-  monthlyFees: number;
+  fees: number;
+  lateFeeDate?: string;
+  lateFeeFine?: number;
   admissionFee: number;
 }
 
-interface OfflineBranch {
+export interface Branch {
+  id: string;
   name: string;
   color: string;
   durationMonths: number;
-  module: string;
-  classFrequency: ClassFrequency;
-  classTime: ClassTime;
-  days: DaySchedule[];
-  courseStartDate: string;
-  courseEndDate: string;
-  batchCode: string;
-  fees: Fees;
+  classType: ClassType;
+  daysPerWeek?: number;
+  classesPerMonth?: number;
+  classHours: number;
+  daysJson: DaysJson;
+
+  semesters: Semester[];
 }
 
-interface OnlineBranch {
-  type: OnlineBranchType;
-  title: string;
-  color: string;
-  durationMonths: number;
-  module: string;
-  classFrequency: ClassFrequency;
-  classTime: ClassTime;
-  days: DaySchedule[];
-  courseStartDate: string;
-  courseEndDate: string;
-  batchCode: string;
-  fees: Fees;
-}
-
-interface Course {
+export interface Course {
   id: string;
   name: string;
   type: CourseType;
-  gridTitle: string[];
   description: string;
-  pdf: string;
-  image: string;
-  branches: (OfflineBranch | OnlineBranch)[];
+  pdf: string | null;
+  image: string | null;
+  gridTitle: string[];
+  module: string;
+  branches: Branch[];
 }
 
-const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+export const DAYS: Array<{ key: keyof DaysJson; label: string }> = [
+  { key: "mon", label: "Mon" },
+  { key: "tue", label: "Tue" },
+  { key: "wed", label: "Wed" },
+  { key: "thu", label: "Thu" },
+  { key: "fri", label: "Fri" },
+  { key: "sat", label: "Sat" },
+  { key: "sun", label: "Sun" },
+];
 
 export default function CourseAdminPage() {
   const [course, setCourse] = useState<Course>({
     id: "",
     name: "",
     type: "OFFLINE",
-    gridTitle: [""],
     description: "",
-    pdf: "",
-    image: "",
+    pdf: null,
+    image: null,
+    gridTitle: [""],
+    module: "",
     branches: [],
   });
 
@@ -104,45 +98,17 @@ export default function CourseAdminPage() {
   };
 
   const addBranch = () => {
-    const newBranch: OfflineBranch | OnlineBranch =
-      course.type === "OFFLINE"
-        ? ({
-            name: "",
-            color: "#000000",
-            durationMonths: 0,
-            module: "",
-            classFrequency: { type: "WEEKLY" as const, daysPerWeek: 0 },
-            classTime: { hours: 0 },
-            days: [],
-            courseStartDate: "",
-            courseEndDate: "",
-            batchCode: "",
-            fees: {
-              semesterNumber: 0,
-              admissionFees: 0,
-              monthlyFees: 0,
-              admissionFee: 0,
-            },
-          } as OfflineBranch)
-        : ({
-            type: "SHORT_DURATION" as const,
-            title: "",
-            color: "#000000",
-            durationMonths: 0,
-            module: "",
-            classFrequency: { type: "WEEKLY" as const, daysPerWeek: 0 },
-            classTime: { hours: 0 },
-            days: [],
-            courseStartDate: "",
-            courseEndDate: "",
-            batchCode: "",
-            fees: {
-              semesterNumber: 0,
-              admissionFees: 0,
-              monthlyFees: 0,
-              admissionFee: 0,
-            },
-          } as OnlineBranch);
+    const newBranch: Branch = {
+      id: `branch_${Date.now()}`,
+      name: "",
+      color: "#4287f5",
+      durationMonths: 0,
+      classType: "WEEKLY",
+      daysPerWeek: 0,
+      classHours: 0,
+      daysJson: {},
+      semesters: [],
+    };
 
     setCourse((prev) => ({
       ...prev,
@@ -154,87 +120,27 @@ export default function CourseAdminPage() {
     setCourse((prev) => ({
       ...prev,
       branches: prev.branches.map((branch, i) =>
-        i === index ? ({ ...branch, [field]: value } as typeof branch) : branch
+        i === index ? { ...branch, [field]: value } : branch
       ),
     }));
   };
 
-  const updateNestedBranch = (
+  const updateDayJson = (
     branchIndex: number,
-    path: string[],
-    value: any
+    day: keyof DaysJson,
+    checked: boolean
   ) => {
     setCourse((prev) => ({
       ...prev,
-      branches: prev.branches.map((branch, i) => {
-        if (i !== branchIndex) return branch;
-
-        const updated: any = { ...branch };
-        let current: any = updated;
-
-        for (let j = 0; j < path.length - 1; j++) {
-          current[path[j]] = { ...current[path[j]] };
-          current = current[path[j]];
-        }
-
-        current[path[path.length - 1]] = value;
-        return updated as typeof branch;
-      }),
+      branches: prev.branches.map((branch, i) =>
+        i === branchIndex
+          ? {
+              ...branch,
+              daysJson: { ...branch.daysJson, [day]: checked },
+            }
+          : branch
+      ),
     }));
-  };
-
-  const addDaySchedule = (branchIndex: number) => {
-    setCourse((prev) => ({
-      ...prev,
-      branches: prev.branches.map((branch, i) => {
-        if (i !== branchIndex) return branch;
-        const newDay: DaySchedule = {
-          day: "Mon",
-          start: "09:00",
-          end: "10:00",
-        };
-        return { ...branch, days: [...branch.days, newDay] } as typeof branch;
-      }),
-    }));
-  };
-
-  const updateDaySchedule = (
-    branchIndex: number,
-    dayIndex: number,
-    field: keyof DaySchedule,
-    value: string
-  ) => {
-    setCourse((prev) => {
-      const updatedBranches = prev.branches.map((branch, i) => {
-        if (i !== branchIndex) return branch;
-        const updatedDays = branch.days.map((day, j) =>
-          j === dayIndex ? { ...day, [field]: value } : day
-        );
-        return { ...branch, days: updatedDays } as typeof branch;
-      });
-
-      return {
-        ...prev,
-        branches: updatedBranches as typeof prev.branches,
-      };
-    });
-  };
-
-  const removeDaySchedule = (branchIndex: number, dayIndex: number) => {
-    setCourse((prev) => {
-      const updatedBranches = prev.branches.map((branch, i) => {
-        if (i !== branchIndex) return branch;
-        return {
-          ...branch,
-          days: branch.days.filter((_, j) => j !== dayIndex),
-        } as typeof branch;
-      });
-
-      return {
-        ...prev,
-        branches: updatedBranches as typeof prev.branches,
-      };
-    });
   };
 
   const removeBranch = (index: number) => {
@@ -244,8 +150,82 @@ export default function CourseAdminPage() {
     }));
   };
 
+  const addSemester = (branchIndex: number) => {
+    const newSemester: Semester = {
+      id: `sem_${Date.now()}`,
+      name: "",
+      startDate: "",
+      endDate: "",
+      fees: 0,
+      admissionFee: 0,
+    };
+
+    setCourse((prev) => ({
+      ...prev,
+      branches: prev.branches.map((branch, i) =>
+        i === branchIndex
+          ? { ...branch, semesters: [...branch.semesters, newSemester] }
+          : branch
+      ),
+    }));
+  };
+
+  const updateSemester = (
+    branchIndex: number,
+    semesterIndex: number,
+    field: string,
+    value: any
+  ) => {
+    setCourse((prev) => ({
+      ...prev,
+      branches: prev.branches.map((branch, i) =>
+        i === branchIndex
+          ? {
+              ...branch,
+              semesters: branch.semesters.map((sem, j) =>
+                j === semesterIndex ? { ...sem, [field]: value } : sem
+              ),
+            }
+          : branch
+      ),
+    }));
+  };
+
+  const removeSemester = (branchIndex: number, semesterIndex: number) => {
+    setCourse((prev) => ({
+      ...prev,
+      branches: prev.branches.map((branch, i) =>
+        i === branchIndex
+          ? {
+              ...branch,
+              semesters: branch.semesters.filter((_, j) => j !== semesterIndex),
+            }
+          : branch
+      ),
+    }));
+  };
+
+  const handleFileUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    type: "pdf" | "image"
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Convert file to base64
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = reader.result as string;
+      setCourse((prev) => ({
+        ...prev,
+        [type]: base64,
+      }));
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSubmit = () => {
-    console.log("Course Data:", JSON.stringify(course, null, 2));
+    console.log("Course Data:", JSON.stringify([course], null, 2));
     alert("Course saved! Check console for JSON output.");
   };
 
@@ -273,7 +253,7 @@ export default function CourseAdminPage() {
                   value={course.id}
                   onChange={(e) => setCourse({ ...course, id: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="course-001"
+                  placeholder="course_web_dev"
                 />
               </div>
 
@@ -288,29 +268,46 @@ export default function CourseAdminPage() {
                     setCourse({ ...course, name: e.target.value })
                   }
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Vastu Course"
+                  placeholder="Full Stack Web Development"
                 />
               </div>
             </div>
 
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Course Type
-              </label>
-              <select
-                value={course.type}
-                onChange={(e) =>
-                  setCourse({
-                    ...course,
-                    type: e.target.value as CourseType,
-                    branches: [],
-                  })
-                }
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="OFFLINE">Offline</option>
-                <option value="ONLINE">Online</option>
-              </select>
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Course Type
+                </label>
+                <select
+                  value={course.type}
+                  onChange={(e) =>
+                    setCourse({
+                      ...course,
+                      type: e.target.value as CourseType,
+                      branches: [],
+                    })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="OFFLINE">Offline</option>
+                  <option value="ONLINE">Online</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Module
+                </label>
+                <input
+                  type="text"
+                  value={course.module}
+                  onChange={(e) =>
+                    setCourse({ ...course, module: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="FULL_STACK"
+                />
+              </div>
             </div>
 
             <div className="mb-4">
@@ -324,7 +321,7 @@ export default function CourseAdminPage() {
                 }
                 rows={3}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Course description..."
+                placeholder="Learn MERN stack from basics to advanced."
               />
             </div>
 
@@ -336,18 +333,11 @@ export default function CourseAdminPage() {
                 <input
                   type="file"
                   accept=".pdf"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      setCourse({ ...course, pdf: file.name });
-                    }
-                  }}
+                  onChange={(e) => handleFileUpload(e, "pdf")}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                 />
                 {course.pdf && (
-                  <p className="mt-2 text-sm text-gray-600">
-                    Selected: {course.pdf}
-                  </p>
+                  <p className="mt-2 text-sm text-green-600">✓ PDF uploaded</p>
                 )}
               </div>
 
@@ -358,17 +348,12 @@ export default function CourseAdminPage() {
                 <input
                   type="file"
                   accept="image/*"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      setCourse({ ...course, image: file.name });
-                    }
-                  }}
+                  onChange={(e) => handleFileUpload(e, "image")}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                 />
                 {course.image && (
-                  <p className="mt-2 text-sm text-gray-600">
-                    Selected: {course.image}
+                  <p className="mt-2 text-sm text-green-600">
+                    ✓ Image uploaded
                   </p>
                 )}
               </div>
@@ -427,7 +412,7 @@ export default function CourseAdminPage() {
               >
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-semibold text-gray-700">
-                    Branch {branchIndex + 1}
+                    Branch {branchIndex + 1}: {branch.name || "Unnamed"}
                   </h3>
                   <button
                     onClick={() => removeBranch(branchIndex)}
@@ -438,58 +423,33 @@ export default function CourseAdminPage() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 mb-4">
-                  {course.type === "ONLINE" && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Branch Type
-                      </label>
-                      <select
-                        value={(branch as OnlineBranch).type}
-                        onChange={(e) =>
-                          updateBranch(branchIndex, "type", e.target.value)
-                        }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      >
-                        <option value="SHORT_DURATION">Short Duration</option>
-                        <option value="LONG_DURATION">Long Duration</option>
-                      </select>
-                    </div>
-                  )}
-
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      {course.type === "OFFLINE" ? "Name" : "Title"}
+                      Branch ID
                     </label>
                     <input
                       type="text"
-                      value={
-                        course.type === "OFFLINE"
-                          ? (branch as OfflineBranch).name
-                          : (branch as OnlineBranch).title
-                      }
+                      value={branch.id}
                       onChange={(e) =>
-                        updateBranch(
-                          branchIndex,
-                          course.type === "OFFLINE" ? "name" : "title",
-                          e.target.value
-                        )
+                        updateBranch(branchIndex, "id", e.target.value)
                       }
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="branch_morning_web"
                     />
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Batch Code
+                      Branch Name
                     </label>
                     <input
                       type="text"
-                      value={branch.batchCode}
+                      value={branch.name}
                       onChange={(e) =>
-                        updateBranch(branchIndex, "batchCode", e.target.value)
+                        updateBranch(branchIndex, "name", e.target.value)
                       }
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="BATCH-2024-01"
+                      placeholder="Morning Batch"
                     />
                   </div>
 
@@ -527,293 +487,269 @@ export default function CourseAdminPage() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Module
+                      Class Type
                     </label>
-                    <input
-                      type="text"
-                      value={branch.module}
+                    <select
+                      value={branch.classType}
                       onChange={(e) =>
-                        updateBranch(branchIndex, "module", e.target.value)
+                        updateBranch(branchIndex, "classType", e.target.value)
                       }
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
+                    >
+                      <option value="WEEKLY">Weekly</option>
+                      <option value="MONTHLY">Monthly</option>
+                    </select>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Course Start Date
-                    </label>
-                    <input
-                      type="date"
-                      value={branch.courseStartDate}
-                      onChange={(e) =>
-                        updateBranch(
-                          branchIndex,
-                          "courseStartDate",
-                          e.target.value
-                        )
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Course End Date
-                    </label>
-                    <input
-                      type="date"
-                      value={branch.courseEndDate}
-                      onChange={(e) =>
-                        updateBranch(
-                          branchIndex,
-                          "courseEndDate",
-                          e.target.value
-                        )
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                </div>
-
-                {/* Class Frequency */}
-                <div className="mb-4 p-4 bg-blue-50 rounded-md">
-                  <h4 className="font-semibold text-gray-700 mb-3">
-                    Class Frequency
-                  </h4>
-                  <div className="grid grid-cols-3 gap-4">
+                  {branch.classType === "WEEKLY" && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Type
-                      </label>
-                      <select
-                        value={branch.classFrequency.type}
-                        onChange={(e) =>
-                          updateNestedBranch(
-                            branchIndex,
-                            ["classFrequency", "type"],
-                            e.target.value
-                          )
-                        }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      >
-                        <option value="WEEKLY">Weekly</option>
-                        <option value="MONTHLY">Monthly</option>
-                      </select>
-                    </div>
-
-                    {branch.classFrequency.type === "WEEKLY" && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Days Per Week
-                        </label>
-                        <input
-                          type="number"
-                          value={branch.classFrequency.daysPerWeek || 0}
-                          onChange={(e) =>
-                            updateNestedBranch(
-                              branchIndex,
-                              ["classFrequency", "daysPerWeek"],
-                              Number(e.target.value)
-                            )
-                          }
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                      </div>
-                    )}
-
-                    {branch.classFrequency.type === "MONTHLY" && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Classes Per Month
-                        </label>
-                        <input
-                          type="number"
-                          value={branch.classFrequency.classesPerMonth || 0}
-                          onChange={(e) =>
-                            updateNestedBranch(
-                              branchIndex,
-                              ["classFrequency", "classesPerMonth"],
-                              Number(e.target.value)
-                            )
-                          }
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                      </div>
-                    )}
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Hours Per Class
+                        Days Per Week
                       </label>
                       <input
                         type="number"
-                        step="0.5"
-                        value={branch.classTime.hours}
+                        value={branch.daysPerWeek || 0}
                         onChange={(e) =>
-                          updateNestedBranch(
+                          updateBranch(
                             branchIndex,
-                            ["classTime", "hours"],
+                            "daysPerWeek",
                             Number(e.target.value)
                           )
                         }
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
                     </div>
+                  )}
+
+                  {branch.classType === "MONTHLY" && (
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                        Classes Per Month
+                      </label>
+                      <input
+                        type="number"
+                        value={branch.classesPerMonth || 0}
+                        onChange={(e) =>
+                          updateBranch(
+                            branchIndex,
+                            "classesPerMonth",
+                            Number(e.target.value)
+                          )
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Class Hours
+                    </label>
+                    <input
+                      type="number"
+                      step="0.5"
+                      value={branch.classHours}
+                      onChange={(e) =>
+                        updateBranch(
+                          branchIndex,
+                          "classHours",
+                          Number(e.target.value)
+                        )
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
                   </div>
                 </div>
 
-                {/* Day Schedule */}
+                {/* Days Selection */}
                 <div className="mb-4 p-4 bg-purple-50 rounded-md">
+                  <h4 className="font-semibold text-gray-700 mb-3">
+                    Class Days
+                  </h4>
+                  <div className="flex flex-wrap gap-4">
+                    {DAYS.map((day) => (
+                      <label
+                        key={day.key}
+                        className="flex items-center gap-2 cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={branch.daysJson[day.key] || false}
+                          onChange={(e) =>
+                            updateDayJson(
+                              branchIndex,
+                              day.key,
+                              e.target.checked
+                            )
+                          }
+                          className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                        />
+                        <span className="text-sm font-medium text-gray-700">
+                          {day.label}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Semesters */}
+                <div className="p-4 bg-green-50 rounded-md">
                   <div className="flex justify-between items-center mb-3">
-                    <h4 className="font-semibold text-gray-700">
-                      Day Schedule
-                    </h4>
+                    <h4 className="font-semibold text-gray-700">Semesters</h4>
                     <button
-                      onClick={() => addDaySchedule(branchIndex)}
-                      className="flex items-center gap-1 px-3 py-1 bg-purple-600 text-white text-sm rounded-md hover:bg-purple-700"
+                      onClick={() => addSemester(branchIndex)}
+                      className="flex items-center gap-1 px-3 py-1 bg-green-600 text-white text-sm rounded-md hover:bg-green-700"
                     >
-                      <Plus size={14} /> Add Day
+                      <Plus size={14} /> Add Semester
                     </button>
                   </div>
 
-                  {branch.days.map((day, dayIndex) => (
-                    <div key={dayIndex} className="grid grid-cols-4 gap-2 mb-2">
-                      <select
-                        value={day.day}
-                        onChange={(e) =>
-                          updateDaySchedule(
-                            branchIndex,
-                            dayIndex,
-                            "day",
-                            e.target.value
-                          )
-                        }
-                        className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                      >
-                        {DAYS.map((d) => (
-                          <option key={d} value={d}>
-                            {d}
-                          </option>
-                        ))}
-                      </select>
-                      <input
-                        type="time"
-                        value={day.start}
-                        onChange={(e) =>
-                          updateDaySchedule(
-                            branchIndex,
-                            dayIndex,
-                            "start",
-                            e.target.value
-                          )
-                        }
-                        className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                      />
-                      <input
-                        type="time"
-                        value={day.end}
-                        onChange={(e) =>
-                          updateDaySchedule(
-                            branchIndex,
-                            dayIndex,
-                            "end",
-                            e.target.value
-                          )
-                        }
-                        className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                      />
-                      <button
-                        onClick={() => removeDaySchedule(branchIndex, dayIndex)}
-                        className="px-3 py-2 bg-red-500 text-white rounded-md hover:bg-red-600"
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                  {branch.semesters.map((semester, semesterIndex) => (
+                    <div
+                      key={semesterIndex}
+                      className="mb-3 p-3 bg-white rounded-md border border-green-200"
+                    >
+                      <div className="flex justify-between items-center mb-2">
+                        <h5 className="text-sm font-semibold text-gray-700">
+                          Semester {semesterIndex + 1}
+                        </h5>
+                        <button
+                          onClick={() =>
+                            removeSemester(branchIndex, semesterIndex)
+                          }
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Semester ID
+                          </label>
+                          <input
+                            type="text"
+                            value={semester.id}
+                            onChange={(e) =>
+                              updateSemester(
+                                branchIndex,
+                                semesterIndex,
+                                "id",
+                                e.target.value
+                              )
+                            }
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-green-500"
+                            placeholder="sem1_web_morning"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Name
+                          </label>
+                          <input
+                            type="text"
+                            value={semester.name}
+                            onChange={(e) =>
+                              updateSemester(
+                                branchIndex,
+                                semesterIndex,
+                                "name",
+                                e.target.value
+                              )
+                            }
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-green-500"
+                            placeholder="Semester 1"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Start Date
+                          </label>
+                          <input
+                            type="date"
+                            value={semester.startDate}
+                            onChange={(e) =>
+                              updateSemester(
+                                branchIndex,
+                                semesterIndex,
+                                "startDate",
+                                e.target.value
+                              )
+                            }
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-green-500"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            End Date
+                          </label>
+                          <input
+                            type="date"
+                            value={semester.endDate}
+                            onChange={(e) =>
+                              updateSemester(
+                                branchIndex,
+                                semesterIndex,
+                                "endDate",
+                                e.target.value
+                              )
+                            }
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-green-500"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Semester Fees
+                          </label>
+                          <input
+                            type="number"
+                            value={semester.fees}
+                            onChange={(e) =>
+                              updateSemester(
+                                branchIndex,
+                                semesterIndex,
+                                "fees",
+                                Number(e.target.value)
+                              )
+                            }
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-green-500"
+                            placeholder="7000"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Semester Admission Fee
+                          </label>
+                          <input
+                            type="number"
+                            value={semester.admissionFee}
+                            onChange={(e) =>
+                              updateSemester(
+                                branchIndex,
+                                semesterIndex,
+                                "admissionFee",
+                                Number(e.target.value)
+                              )
+                            }
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-green-500"
+                            placeholder="2000"
+                          />
+                        </div>
+                      </div>
                     </div>
                   ))}
-                </div>
 
-                {/* Fees */}
-                <div className="p-4 bg-green-50 rounded-md">
-                  <h4 className="font-semibold text-gray-700 mb-3">Fees</h4>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Semester Number
-                      </label>
-                      <input
-                        type="number"
-                        value={branch.fees.semesterNumber}
-                        onChange={(e) =>
-                          updateNestedBranch(
-                            branchIndex,
-                            ["fees", "semesterNumber"],
-                            Number(e.target.value)
-                          )
-                        }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                        placeholder="1"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Admission Fee
-                      </label>
-                      <input
-                        type="number"
-                        value={branch.fees.admissionFee}
-                        onChange={(e) =>
-                          updateNestedBranch(
-                            branchIndex,
-                            ["fees", "admissionFee"],
-                            Number(e.target.value)
-                          )
-                        }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                        placeholder="3000"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Admission Fees
-                      </label>
-                      <input
-                        type="number"
-                        value={branch.fees.admissionFees}
-                        onChange={(e) =>
-                          updateNestedBranch(
-                            branchIndex,
-                            ["fees", "admissionFees"],
-                            Number(e.target.value)
-                          )
-                        }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                        placeholder="5000"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Monthly Fees
-                      </label>
-                      <input
-                        type="number"
-                        value={branch.fees.monthlyFees}
-                        onChange={(e) =>
-                          updateNestedBranch(
-                            branchIndex,
-                            ["fees", "monthlyFees"],
-                            Number(e.target.value)
-                          )
-                        }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                        placeholder="2000"
-                      />
-                    </div>
-                  </div>
+                  {branch.semesters.length === 0 && (
+                    <p className="text-sm text-gray-500 text-center py-4">
+                      No semesters added yet
+                    </p>
+                  )}
                 </div>
               </div>
             ))}
