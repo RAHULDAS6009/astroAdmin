@@ -1,365 +1,532 @@
 import React, { useState, useEffect } from "react";
-import { Search, DollarSign, Edit2, Save, X } from "lucide-react";
+import {
+  Search,
+  DollarSign,
+  Edit2,
+  Save,
+  X,
+  RefreshCw,
+  AlertCircle,
+} from "lucide-react";
+
+const API_BASE_URL = "http://localhost:5000/api/v1";
 
 interface FeeRecord {
-  details: string;
-  date: string;
-  fees: number;
+  id?: number;
+  semesterId?: string;
+  description: string;
+  paymentDate: string | null;
+  amount: number;
   lateFine: number;
-  totalAmount: number;
-  paymentMode: string;
+  status: string;
+  paymentMode: string | null;
+  paymentId?: string | null;
 }
 
 interface Semester {
+  id: string;
   name: string;
-  dkp: string;
-  startMonth: string;
-  endMonth: string;
-  examDate: string;
-  marksObtained: number;
-  grade: string;
-  fees: FeeRecord[];
+  number: number;
+  startDate: string;
+  endDate: string;
+  fees: number;
+  lateFeeDate: string | null;
+  lateFeeFine: number;
+  admissionFee: number;
+}
+
+interface Branch {
+  id: string;
+  name: string;
+  semsters: Semester[];
+}
+
+interface Course {
+  id: number;
+  name: string;
 }
 
 interface Student {
   id: number;
+  studentId: string;
   name: string;
-  rollNo: string;
-  semesters: Semester[];
+  email: string;
+  mobileNumber: string;
+  courseMode: string;
+  course: Course | null;
+  branch: Branch | null;
+  fees: FeeRecord[];
 }
 
 interface PaymentDetails {
-  fees: string;
+  amount: string;
   lateFine: string;
   date: string;
-  method: string;
+  mode: string;
+  description: string;
 }
 
 const FeeManagementSystem: React.FC = () => {
   const [students, setStudents] = useState<Student[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
-  const [selectedSemester, setSelectedSemester] = useState<number>(0);
-  const [editingRow, setEditingRow] = useState<number | null>(null);
+  const [editingFee, setEditingFee] = useState<any | null>(null);
   const [paymentDetails, setPaymentDetails] = useState<PaymentDetails>({
-    fees: "",
+    amount: "",
     lateFine: "",
-    date: "",
-    method: "via website",
+    date: new Date().toISOString().split("T")[0],
+    mode: "Cash Manual",
+    description: "",
   });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedBatch, setSelectedBatch] = useState<string>("");
   const [selectedMonth, setSelectedMonth] = useState<string>("");
-  const [selectedBatch, setSelectedBatch] = useState<string>("Semester 1");
   const [paidList, setPaidList] = useState<Student[]>([]);
   const [unpaidList, setUnpaidList] = useState<Student[]>([]);
 
-  const generateSemesterData = (): Semester[] => {
-    return [
-      {
-        name: "Semester 1",
-        dkp: "DKP",
-        startMonth: "Jan-25",
-        endMonth: "Mar-25",
-        examDate: "29th March 2025",
-        marksObtained: 170,
-        grade: "1st Division",
-        fees: [
-          {
-            details: "Admission",
-            date: "5th Dec 2024",
-            fees: 1000,
-            lateFine: 0,
-            totalAmount: 1000,
-            paymentMode: "via website",
+  // Fetch all students
+  const fetchStudents = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/students`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("admin_token")}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) throw new Error("Failed to fetch students");
+
+      const result = await response.json();
+      console.log("📊 Fetched Students Data:", result.data);
+
+      if (result.success) {
+        setStudents(result.data);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to fetch students");
+      console.error("❌ Error fetching students:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch single student details
+  const fetchStudentDetails = async (studentId: number) => {
+    setLoading(true);
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/admin/students/${studentId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("admin_token")}`,
+            "Content-Type": "application/json",
           },
-          {
-            details: "Month Jan 25",
-            date: "7th Jan 2025",
-            fees: 1000,
-            lateFine: 0,
-            totalAmount: 1000,
-            paymentMode: "via website",
-          },
-          {
-            details: "Month Feb 25",
-            date: "10th Jan 2025",
-            fees: 1000,
-            lateFine: 0,
-            totalAmount: 1000,
-            paymentMode: "cash manual",
-          },
-          {
-            details: "Month Mar 25",
-            date: "15th March 2025",
-            fees: 1000,
-            lateFine: 50,
-            totalAmount: 1050,
-            paymentMode: "via website",
-          },
-        ],
-      },
-      {
-        name: "Semester 2",
-        dkp: "DKP",
-        startMonth: "Apr-25",
-        endMonth: "Jun-25",
-        examDate: "28th June 2025",
-        marksObtained: 0,
-        grade: "",
-        fees: [
-          {
-            details: "Month Apr 25",
-            date: "",
-            fees: 1000,
-            lateFine: 0,
-            totalAmount: 1000,
-            paymentMode: "",
-          },
-          {
-            details: "Month May 25",
-            date: "",
-            fees: 1000,
-            lateFine: 0,
-            totalAmount: 1000,
-            paymentMode: "",
-          },
-          {
-            details: "Month Jun 25",
-            date: "",
-            fees: 1000,
-            lateFine: 0,
-            totalAmount: 1000,
-            paymentMode: "",
-          },
-        ],
-      },
-      {
-        name: "Semester 3",
-        dkp: "DKP",
-        startMonth: "Jul-25",
-        endMonth: "Sep-25",
-        examDate: "30th September 2025",
-        marksObtained: 0,
-        grade: "",
-        fees: [
-          {
-            details: "Month Jul 25",
-            date: "",
-            fees: 1000,
-            lateFine: 0,
-            totalAmount: 1000,
-            paymentMode: "",
-          },
-          {
-            details: "Month Aug 25",
-            date: "",
-            fees: 1000,
-            lateFine: 0,
-            totalAmount: 1000,
-            paymentMode: "",
-          },
-          {
-            details: "Month Sep 25",
-            date: "",
-            fees: 1000,
-            lateFine: 0,
-            totalAmount: 1000,
-            paymentMode: "",
-          },
-        ],
-      },
-      {
-        name: "Semester 4",
-        dkp: "DKP",
-        startMonth: "Oct-25",
-        endMonth: "Dec-25",
-        examDate: "29th December 2025",
-        marksObtained: 0,
-        grade: "",
-        fees: [
-          {
-            details: "Month Oct 25",
-            date: "",
-            fees: 1000,
-            lateFine: 0,
-            totalAmount: 1000,
-            paymentMode: "",
-          },
-          {
-            details: "Month Nov 25",
-            date: "",
-            fees: 1000,
-            lateFine: 0,
-            totalAmount: 1000,
-            paymentMode: "",
-          },
-          {
-            details: "Month Dec 25",
-            date: "",
-            fees: 1000,
-            lateFine: 0,
-            totalAmount: 1000,
-            paymentMode: "",
-          },
-        ],
-      },
-    ];
+        }
+      );
+
+      if (!response.ok) throw new Error("Failed to fetch student details");
+
+      const result = await response.json();
+      console.log("📊 Student Details:", result.data);
+
+      if (result.success) {
+        setSelectedStudent(result.data);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to fetch student");
+      console.error("❌ Error fetching student details:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
-    const sampleStudents: Student[] = [
-      {
-        id: 1,
-        name: "John Smith",
-        rollNo: "CS101",
-        semesters: generateSemesterData(),
-      },
-      {
-        id: 2,
-        name: "Sarah Johnson",
-        rollNo: "CS102",
-        semesters: generateSemesterData(),
-      },
-      {
-        id: 3,
-        name: "Mike Williams",
-        rollNo: "CS103",
-        semesters: generateSemesterData(),
-      },
-    ];
-    setStudents(sampleStudents);
+    fetchStudents();
   }, []);
 
   const filteredStudents = students.filter(
     (student) =>
-      student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      student.rollNo.toLowerCase().includes(searchTerm.toLowerCase())
+      (student.name?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
+      (student.studentId?.toLowerCase() || "").includes(
+        searchTerm.toLowerCase()
+      )
   );
+
+  // Calculate late fine (matching HTML logic)
+  const calculateLateFine = (dueDate: string, semester: Semester) => {
+    const today = new Date();
+    const due = new Date(dueDate);
+
+    if (today <= due) return 0;
+
+    const lateFeeDate = semester.lateFeeDate
+      ? new Date(semester.lateFeeDate)
+      : due;
+
+    return today > lateFeeDate ? semester.lateFeeFine || 0 : 0;
+  };
+
+  // Generate monthly payment structure (EXACTLY matching HTML logic)
+  const generateMonthlyPayments = (
+    semester: Semester,
+    semesterFees: FeeRecord[]
+  ) => {
+    const startDate = new Date(semester.startDate);
+    const endDate = new Date(semester.endDate);
+    const payments: any[] = [];
+
+    // Admission Payment
+    const admissionPayment = semesterFees.find(
+      (f) => f.description === "Admission Fee"
+    );
+
+    payments.push({
+      id: admissionPayment?.id,
+      detail: "Admission",
+      date: admissionPayment
+        ? formatDate(admissionPayment.paymentDate)
+        : "Pending",
+      fees: semester.admissionFee || 0,
+      lateFine: admissionPayment?.lateFine || 0,
+      status: admissionPayment ? "Paid" : "Pending",
+      mode: admissionPayment?.paymentMode || "-",
+      isPending: !admissionPayment,
+      dueDate: formatDate(semester.startDate),
+      description: "Admission Fee",
+      semesterId: semester.id,
+      paymentDate: admissionPayment?.paymentDate || null,
+    });
+
+    // Monthly Fees
+    const monthNames = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
+
+    // Get all monthly fee payments sorted by payment date
+    const monthlyPayments = semesterFees
+      .filter((f) => f.description === "Monthly Fee" && f.paymentDate)
+      .sort(
+        (a, b) =>
+          new Date(a.paymentDate!).getTime() -
+          new Date(b.paymentDate!).getTime()
+      );
+
+    let paymentIndex = 0;
+    const current = new Date(startDate);
+
+    while (current <= endDate) {
+      const dueDate = new Date(current.getFullYear(), current.getMonth(), 5);
+
+      const monthKey = `Month ${monthNames[current.getMonth()]}-${current
+        .getFullYear()
+        .toString()
+        .slice(-2)}`;
+
+      // Check if there's a payment available for this month slot
+      const monthPayment =
+        paymentIndex < monthlyPayments.length
+          ? monthlyPayments[paymentIndex]
+          : null;
+
+      const lateFine = monthPayment
+        ? monthPayment.lateFine
+        : calculateLateFine(dueDate.toISOString(), semester);
+
+      payments.push({
+        id: monthPayment?.id,
+        detail: monthKey,
+        date: monthPayment
+          ? formatDate(monthPayment.paymentDate)
+          : `Due: 5th ${
+              monthNames[current.getMonth()]
+            } ${current.getFullYear()}`,
+        fees: semester.fees || 0,
+        lateFine: lateFine,
+        status: monthPayment ? "Paid" : "Pending",
+        mode: monthPayment?.paymentMode || "-",
+        isPending: !monthPayment,
+        dueDate: formatDate(dueDate.toISOString()),
+        description: "Monthly Fee",
+        semesterId: semester.id,
+        monthIndex: current.getMonth(),
+        year: current.getFullYear(),
+        paymentDate: monthPayment?.paymentDate || null,
+      });
+
+      // If a payment was used for this month, move to next payment
+      if (monthPayment) {
+        paymentIndex++;
+      }
+
+      current.setMonth(current.getMonth() + 1);
+    }
+
+    return payments;
+  };
+
+  // Handle manual payment entry
+  const handleSavePayment = async () => {
+    if (!selectedStudent || !editingFee) {
+      alert("No fee record selected");
+      return;
+    }
+
+    if (!paymentDetails.amount || !paymentDetails.date) {
+      alert("Please fill in payment amount and date");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      console.log("💳 Saving payment:", {
+        studentId: selectedStudent.id,
+        semesterId: editingFee.semesterId,
+        amount: parseFloat(paymentDetails.amount),
+        lateFine: parseFloat(paymentDetails.lateFine) || 0,
+        description: paymentDetails.description || editingFee.description,
+        paymentMode: paymentDetails.mode,
+        paymentDate: paymentDetails.date,
+      });
+
+      // Create manual payment record
+      const response = await fetch(
+        `${API_BASE_URL}/admin/fees/manual-payment`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("admin_token")}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            studentId: selectedStudent.id,
+            semesterId: editingFee.semesterId,
+            amount: parseFloat(paymentDetails.amount),
+            lateFine: parseFloat(paymentDetails.lateFine) || 0,
+            description: paymentDetails.description || editingFee.description,
+            paymentMode: paymentDetails.mode,
+            paymentDate: paymentDetails.date,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to save payment");
+      }
+
+      const result = await response.json();
+      console.log("✅ Payment saved:", result);
+
+      if (result.success) {
+        alert("Payment saved successfully!");
+        await fetchStudentDetails(selectedStudent.id);
+        await fetchStudents();
+        setEditingFee(null);
+        setPaymentDetails({
+          amount: "",
+          lateFine: "",
+          date: new Date().toISOString().split("T")[0],
+          mode: "Cash Manual",
+          description: "",
+        });
+      }
+    } catch (err) {
+      console.error("❌ Payment save error:", err);
+      alert(
+        "Failed to save payment: " +
+          (err instanceof Error ? err.message : "Unknown error")
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Check monthly payment status (matching HTML logic)
   const checkMonthlyPayments = () => {
-    if (!selectedMonth || !selectedBatch) return;
+    if (!selectedMonth || !selectedBatch) {
+      alert("Please select both batch and month");
+      return;
+    }
 
     const paid: Student[] = [];
     const unpaid: Student[] = [];
 
+    // Parse the selected month (e.g., "Jan 25" -> Jan 2025)
+    const [monthName, yearShort] = selectedMonth.split(" ");
+    const monthNames = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
+    const monthIndex = monthNames.indexOf(monthName);
+    const year = 2000 + parseInt(yearShort);
+
+    console.log("🔍 Checking payments for:", {
+      selectedBatch,
+      selectedMonth,
+      monthIndex,
+      year,
+    });
+
     students.forEach((student) => {
-      const semester = student.semesters.find(
-        (sem) => sem.name === selectedBatch
+      if (!student.branch?.semsters) {
+        console.warn("⚠️ Student missing branch/semesters:", student.name);
+        return;
+      }
+
+      // Find the matching semester
+      const semester = student.branch.semsters.find(
+        (sem) => `Semester ${sem.number}` === selectedBatch
       );
 
-      if (!semester) return;
+      if (!semester) {
+        return;
+      }
 
-      const record = semester.fees.find((fee) =>
-        fee.details.toLowerCase().includes(selectedMonth.toLowerCase())
-      );
+      if (!student.fees || !Array.isArray(student.fees)) {
+        unpaid.push(student);
+        return;
+      }
 
-      if (record && record.date) {
+      // Generate payments to check against
+      const payments = generateMonthlyPayments(semester, student.fees);
+
+      // Find the payment for this specific month
+      const monthPayment = payments.find((p) => {
+        if (p.description !== "Monthly Fee") return false;
+        return p.monthIndex === monthIndex && p.year === year;
+      });
+
+      if (monthPayment && monthPayment.status === "Paid") {
         paid.push(student);
       } else {
         unpaid.push(student);
       }
     });
 
+    console.log("📊 Payment Status Results:", {
+      totalStudents: students.length,
+      paid: paid.length,
+      unpaid: unpaid.length,
+    });
+
     setPaidList(paid);
     setUnpaidList(unpaid);
   };
 
-  const handleStudentSelect = (student: Student): void => {
-    setSelectedStudent(student);
-    setSelectedSemester(0);
-    setEditingRow(null);
+  const handleStudentSelect = (student: Student) => {
+    fetchStudentDetails(student.id);
+    setEditingFee(null);
   };
 
-  const handleEditRow = (rowIndex: number): void => {
-    if (!selectedStudent) return;
-
-    const fee = selectedStudent.semesters[selectedSemester].fees[rowIndex];
-    setEditingRow(rowIndex);
+  const handleEditFee = (fee: any) => {
+    setEditingFee(fee);
     setPaymentDetails({
-      fees: fee.fees.toString(),
+      amount: fee.fees.toString(),
       lateFine: fee.lateFine.toString(),
-      date: fee.date || new Date().toISOString().split("T")[0],
-      method: fee.paymentMode || "via website",
+      date: fee.paymentDate
+        ? new Date(fee.paymentDate).toISOString().split("T")[0]
+        : new Date().toISOString().split("T")[0],
+      mode: fee.mode === "-" ? "Cash Manual" : fee.mode,
+      description: fee.description,
     });
   };
 
-  const handleSavePayment = (): void => {
-    if (
-      !paymentDetails.fees ||
-      !paymentDetails.date ||
-      !selectedStudent ||
-      editingRow === null
-    ) {
-      alert("Please fill in all payment details");
-      return;
+  // Generate unique identifier for each payment row
+  const getPaymentKey = (payment: any) => {
+    return `${payment.semesterId}-${payment.description}-${payment.detail}`;
+  };
+
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return "-";
+    const date = new Date(dateString);
+    const months = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
+    return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+  };
+
+  const calculateTotal = (payments: any[]) => {
+    return payments.reduce((sum, p) => sum + p.fees + p.lateFine, 0);
+  };
+
+  const calculateTotalPaid = (student: Student) => {
+    if (!student.fees || !Array.isArray(student.fees)) {
+      return 0;
     }
-
-    const updatedStudents = students.map((student) => {
-      if (student.id === selectedStudent.id) {
-        const updatedSemesters = [...student.semesters];
-        const updatedFees = [...updatedSemesters[selectedSemester].fees];
-        const fees = parseFloat(paymentDetails.fees);
-        const lateFine = parseFloat(paymentDetails.lateFine || "0");
-
-        updatedFees[editingRow] = {
-          ...updatedFees[editingRow],
-          fees: fees,
-          lateFine: lateFine,
-          totalAmount: fees + lateFine,
-          date: paymentDetails.date,
-          paymentMode: paymentDetails.method,
-        };
-        updatedSemesters[selectedSemester] = {
-          ...updatedSemesters[selectedSemester],
-          fees: updatedFees,
-        };
-        return { ...student, semesters: updatedSemesters };
-      }
-      return student;
-    });
-
-    setStudents(updatedStudents);
-    const updatedStudent = updatedStudents.find(
-      (s) => s.id === selectedStudent.id
-    );
-    if (updatedStudent) {
-      setSelectedStudent(updatedStudent);
-    }
-    setEditingRow(null);
-    setPaymentDetails({
-      fees: "",
-      lateFine: "",
-      date: "",
-      method: "via website",
-    });
-  };
-
-  const calculateTotal = (fees: FeeRecord[]): number => {
-    return fees.reduce((sum, fee) => sum + fee.totalAmount, 0);
-  };
-
-  const calculateTotalPaid = (student: Student): number => {
-    return student.semesters.reduce((total, semester) => {
-      return (
-        total +
-        semester.fees.reduce((sum, fee) => {
-          return sum + (fee.date ? fee.totalAmount : 0);
-        }, 0)
-      );
-    }, 0);
+    return student.fees
+      .filter((f) => f && f.status === "Paid")
+      .reduce((sum, f) => sum + (f.amount || 0) + (f.lateFine || 0), 0);
   };
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto">
+        {/* Header */}
         <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">
-            Fee Management System
-          </h1>
-          <p className="text-gray-600">
-            Search and manage student fee payments across 4 semesters
-          </p>
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-800 mb-2">
+                Fee Management System
+              </h1>
+              <p className="text-gray-600">
+                Manage student fee payments and track payment status
+              </p>
+            </div>
+            <button
+              onClick={fetchStudents}
+              disabled={loading}
+              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            >
+              <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
+              Refresh
+            </button>
+          </div>
         </div>
 
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 flex items-center gap-2">
+            <AlertCircle className="text-red-600" size={20} />
+            <span className="text-red-800">{error}</span>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Student List Sidebar */}
           <div className="lg:col-span-1">
             <div className="bg-white rounded-lg shadow-sm p-6">
               <div className="relative mb-4">
@@ -369,7 +536,7 @@ const FeeManagementSystem: React.FC = () => {
                 />
                 <input
                   type="text"
-                  placeholder="Search by name or roll no..."
+                  placeholder="Search by name or ID..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -377,35 +544,43 @@ const FeeManagementSystem: React.FC = () => {
               </div>
 
               <div className="space-y-2 max-h-96 overflow-y-auto">
-                {filteredStudents.map((student) => {
-                  const totalPaid = calculateTotalPaid(student);
-                  return (
-                    <div
-                      key={student.id}
-                      onClick={() => handleStudentSelect(student)}
-                      className={`p-4 border rounded-lg cursor-pointer transition ${
-                        selectedStudent?.id === student.id
-                          ? "border-blue-500 bg-blue-50"
-                          : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
-                      }`}
-                    >
-                      <div className="font-semibold text-gray-800">
-                        {student.name}
+                {filteredStudents.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    No students found
+                  </div>
+                ) : (
+                  filteredStudents.map((student) => {
+                    const totalPaid = calculateTotalPaid(student);
+                    return (
+                      <div
+                        key={student.id}
+                        onClick={() => handleStudentSelect(student)}
+                        className={`p-4 border rounded-lg cursor-pointer transition ${
+                          selectedStudent?.id === student.id
+                            ? "border-blue-500 bg-blue-50"
+                            : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
+                        }`}
+                      >
+                        <div className="font-semibold text-gray-800">
+                          {student.name || "N/A"}
+                        </div>
+                        <div className="text-sm text-gray-600">
+                          {student.studentId || "N/A"}
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          {student.branch?.semsters?.length || 0} Semesters
+                        </div>
+                        <div className="mt-2 text-xs text-green-600">
+                          Total Paid: ₹{totalPaid}
+                        </div>
                       </div>
-                      <div className="text-sm text-gray-600">
-                        {student.rollNo}
-                      </div>
-                      <div className="text-xs text-gray-500 mt-1">
-                        4 Semesters
-                      </div>
-                      <div className="mt-2 text-xs text-green-600">
-                        Total Paid: ₹{totalPaid}
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                )}
               </div>
-              <div className="bg-white rounded-lg shadow-sm p-4 mb-6 mt-16 border">
+
+              {/* Monthly Status Checker */}
+              <div className="mt-6 pt-6 border-t">
                 <h3 className="text-lg font-semibold mb-3 text-gray-800">
                   Monthly Fee Status
                 </h3>
@@ -419,13 +594,11 @@ const FeeManagementSystem: React.FC = () => {
                     onChange={(e) => setSelectedBatch(e.target.value)}
                     className="w-full border p-2 rounded-lg mt-1"
                   >
-                    {[
-                      "Semester 1",
-                      "Semester 2",
-                      "Semester 3",
-                      "Semester 4",
-                    ].map((sem) => (
-                      <option key={sem}>{sem}</option>
+                    <option value="">-- Select Batch --</option>
+                    {[1, 2, 3, 4].map((num) => (
+                      <option key={num} value={`Semester ${num}`}>
+                        Semester {num}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -440,195 +613,294 @@ const FeeManagementSystem: React.FC = () => {
                     className="w-full border p-2 rounded-lg mt-1"
                   >
                     <option value="">-- Select Month --</option>
-                    <option value="jan 25">Jan 25</option>
-                    <option value="feb 25">Feb 25</option>
-                    <option value="mar 25">Mar 25</option>
-                    <option value="apr 25">Apr 25</option>
-                    <option value="may 25">May 25</option>
-                    <option value="jun 25">Jun 25</option>
-                    <option value="jul 25">Jul 25</option>
-                    <option value="aug 25">Aug 25</option>
-                    <option value="sep 25">Sep 25</option>
-                    <option value="oct 25">Oct 25</option>
-                    <option value="nov 25">Nov 25</option>
-                    <option value="dec 25">Dec 25</option>
+                    {[
+                      "Jan 25",
+                      "Feb 25",
+                      "Mar 25",
+                      "Apr 25",
+                      "May 25",
+                      "Jun 25",
+                      "Jul 25",
+                      "Aug 25",
+                      "Sep 25",
+                      "Oct 25",
+                      "Nov 25",
+                      "Dec 25",
+                    ].map((month) => (
+                      <option key={month} value={month}>
+                        {month}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
                 <button
                   onClick={checkMonthlyPayments}
-                  className="w-full bg-blue-600 text-white py-2 rounded-lg mt-2"
+                  className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700"
                 >
                   Check Status
                 </button>
 
-                {selectedMonth && (
-                  <div className="mt-4">
-                    <h4 className="font-semibold text-green-700 mb-2">
-                      Paid Students ({paidList.length})
-                    </h4>
-                    <ul className="text-sm mb-4">
-                      {paidList.map((s) => (
-                        <li key={s.id} className="text-green-600">
-                          ✓ {s.name} ({s.rollNo})
-                        </li>
-                      ))}
-                    </ul>
+                {(paidList.length > 0 || unpaidList.length > 0) &&
+                  selectedMonth && (
+                    <div className="mt-4">
+                      <h4 className="font-semibold text-green-700 mb-2">
+                        Paid Students ({paidList.length})
+                      </h4>
+                      <ul className="text-sm mb-4 max-h-32 overflow-y-auto">
+                        {paidList.length > 0 ? (
+                          paidList.map((s) => (
+                            <li key={s.id} className="text-green-600">
+                              ✓ {s.name} ({s.studentId})
+                            </li>
+                          ))
+                        ) : (
+                          <li className="text-gray-500 italic">
+                            No students have paid
+                          </li>
+                        )}
+                      </ul>
 
-                    <h4 className="font-semibold text-red-700 mb-2">
-                      Not Paid ({unpaidList.length})
-                    </h4>
-                    <ul className="text-sm">
-                      {unpaidList.map((s) => (
-                        <li key={s.id} className="text-red-600">
-                          ✗ {s.name} ({s.rollNo})
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+                      <h4 className="font-semibold text-red-700 mb-2">
+                        Not Paid ({unpaidList.length})
+                      </h4>
+                      <ul className="text-sm max-h-32 overflow-y-auto">
+                        {unpaidList.length > 0 ? (
+                          unpaidList.map((s) => (
+                            <li key={s.id} className="text-red-600">
+                              ✗ {s.name} ({s.studentId})
+                            </li>
+                          ))
+                        ) : (
+                          <li className="text-gray-500 italic">
+                            All students have paid
+                          </li>
+                        )}
+                      </ul>
+                    </div>
+                  )}
               </div>
             </div>
           </div>
 
+          {/* Main Content Area */}
           <div className="lg:col-span-2">
             {selectedStudent ? (
               <div className="bg-white rounded-lg shadow-sm p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <div>
-                    <h2 className="text-2xl font-bold text-gray-800">
-                      {selectedStudent.name}
-                    </h2>
-                    <p className="text-gray-600">{selectedStudent.rollNo}</p>
-                  </div>
+                <div className="mb-6">
+                  <h2 className="text-2xl font-bold text-gray-800">
+                    {selectedStudent.name}
+                  </h2>
+                  <p className="text-gray-600">{selectedStudent.studentId}</p>
+                  <p className="text-sm text-gray-500">
+                    {selectedStudent.course?.name} -{" "}
+                    {selectedStudent.branch?.name}
+                  </p>
                 </div>
 
-                {selectedStudent.semesters.map((semester, semIndex) => {
-                  const total = calculateTotal(semester.fees);
+                {selectedStudent.branch?.semsters?.map((semester, semIndex) => {
+                  const semesterFees = selectedStudent.fees.filter(
+                    (f) => f.semesterId === semester.id
+                  );
+                  const payments = generateMonthlyPayments(
+                    semester,
+                    semesterFees
+                  );
+                  const total = calculateTotal(payments);
+                  console.log("-----------------> >>>>>>", payments);
 
                   return (
                     <div
-                      key={semIndex}
-                      className="mb-10 border rounded-lg p-5 bg-gray-50"
+                      key={semester.id}
+                      className="mb-8 border rounded-lg p-5 bg-gray-50"
                     >
                       <h3 className="text-xl font-bold text-gray-800 mb-4">
-                        {semester.name}
+                        Semester {semester.number}: {semester.name}
                       </h3>
 
-                      <div className="grid grid-cols-2 gap-4 mb-6 bg-white p-4 rounded-lg shadow-sm">
-                        <div>
-                          <div className="text-sm text-gray-600">DKP</div>
-                          <div className="font-semibold">{semester.dkp}</div>
-                        </div>
+                      <div className="grid grid-cols-2 gap-4 mb-4 bg-white p-4 rounded-lg">
                         <div>
                           <div className="text-sm text-gray-600">Duration</div>
                           <div className="font-semibold">
-                            {semester.startMonth} - {semester.endMonth}
+                            {formatDate(semester.startDate)} -{" "}
+                            {formatDate(semester.endDate)}
                           </div>
                         </div>
                         <div>
                           <div className="text-sm text-gray-600">
-                            DKP Exam Date
+                            Monthly Fee
                           </div>
-                          <div className="font-semibold">
-                            {semester.examDate}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-sm text-gray-600">
-                            Marks Obtained
-                          </div>
-                          <div className="font-semibold">
-                            {semester.marksObtained > 0
-                              ? `${semester.marksObtained} - ${semester.grade}`
-                              : "-"}
-                          </div>
+                          <div className="font-semibold">₹{semester.fees}</div>
                         </div>
                       </div>
 
                       {/* Fee Table */}
                       <div className="border rounded-lg overflow-x-auto bg-white">
-                        <table className="w-full">
+                        <table className="w-full text-sm">
                           <thead className="bg-gray-100">
                             <tr>
                               <th className="px-4 py-3 text-left">Details</th>
                               <th className="px-4 py-3 text-left">Date</th>
-                              <th className="px-4 py-3 text-left">Fees</th>
+                              <th className="px-4 py-3 text-left">Amount</th>
                               <th className="px-4 py-3 text-left">Late Fine</th>
-                              <th className="px-4 py-3 text-left">
-                                Total Amount
-                              </th>
-                              <th className="px-4 py-3 text-left">
-                                Payment Mode
-                              </th>
+                              <th className="px-4 py-3 text-left">Total</th>
+                              <th className="px-4 py-3 text-left">Status</th>
                               <th className="px-4 py-3 text-left">Action</th>
                             </tr>
                           </thead>
-
-                          <tbody className="divide-y divide-gray-200">
-                            {semester.fees.map((fee, feeIndex) => {
+                          <tbody className="divide-y">
+                            {payments.map((payment, idx) => {
                               const isEditing =
-                                editingRow ===
-                                Number(`${semIndex}-${feeIndex}`);
+                                editingFee?.description ===
+                                  payment.description &&
+                                editingFee?.semesterId === payment.semesterId;
+
                               return (
-                                <React.Fragment key={feeIndex}>
+                                <React.Fragment key={idx}>
                                   <tr
                                     className={isEditing ? "bg-yellow-50" : ""}
                                   >
-                                    <td className="px-4 py-3">{fee.details}</td>
                                     <td className="px-4 py-3">
-                                      {fee.date || "-"}
+                                      {payment.detail}
                                     </td>
-                                    <td className="px-4 py-3">{fee.fees}</td>
+                                    <td className="px-4 py-3">
+                                      {payment.date.startsWith("Due") ||
+                                      payment.date.startsWith("Pending")
+                                        ? "Will be Paid"
+                                        : formatDate(payment.date)}
+                                    </td>
+                                    <td className="px-4 py-3">
+                                      ₹{payment.fees}
+                                    </td>
                                     <td className="px-4 py-3 text-red-600">
-                                      {fee.lateFine > 0 ? fee.lateFine : "0-"}
+                                      {payment.lateFine > 0
+                                        ? `₹${payment.lateFine}`
+                                        : "-"}
+                                    </td>
+                                    <td className="px-4 py-3 font-bold">
+                                      ₹{payment.fees + payment.lateFine}
                                     </td>
                                     <td className="px-4 py-3">
-                                      {fee.totalAmount}
+                                      <span
+                                        className={`px-3 py-1 rounded-full text-xs ${
+                                          payment.status === "Paid"
+                                            ? "bg-green-100 text-green-800"
+                                            : "bg-red-100 text-red-800"
+                                        }`}
+                                      >
+                                        {payment.status}
+                                      </span>
                                     </td>
-                                    <td className="px-4 py-3">
-                                      {fee.paymentMode || "-"}
-                                    </td>
-
                                     <td className="px-4 py-3">
                                       {isEditing ? (
                                         <div className="flex gap-2">
                                           <button
                                             onClick={handleSavePayment}
-                                            className="text-green-600"
+                                            disabled={loading}
+                                            className="text-green-600 hover:text-green-700"
                                           >
                                             <Save size={18} />
                                           </button>
                                           <button
-                                            onClick={() => setEditingRow(null)}
-                                            className="text-red-600"
+                                            onClick={() => setEditingFee(null)}
+                                            className="text-red-600 hover:text-red-700"
                                           >
                                             <X size={18} />
                                           </button>
                                         </div>
                                       ) : (
-                                        <button
-                                          onClick={() => {
-                                            setSelectedSemester(semIndex);
-                                            handleEditRow(feeIndex);
-                                            setEditingRow(
-                                              Number(`${semIndex}-${feeIndex}`)
-                                            );
-                                          }}
-                                          className="text-blue-600"
-                                        >
-                                          <Edit2 size={18} />
-                                        </button>
+                                        payment.status === "Pending" && (
+                                          <button
+                                            onClick={() =>
+                                              handleEditFee(payment)
+                                            }
+                                            className="text-blue-600 hover:text-blue-700"
+                                          >
+                                            <Edit2 size={18} />
+                                          </button>
+                                        )
                                       )}
                                     </td>
                                   </tr>
 
-                                  {/* Editing form */}
                                   {isEditing && (
                                     <tr className="bg-yellow-50">
                                       <td colSpan={7} className="px-4 py-4">
                                         <div className="grid grid-cols-4 gap-4">
-                                          {/* same input fields as before */}
+                                          <div>
+                                            <label className="block text-sm font-medium mb-1">
+                                              Amount (₹)
+                                            </label>
+                                            <input
+                                              type="number"
+                                              value={paymentDetails.amount}
+                                              onChange={(e) =>
+                                                setPaymentDetails({
+                                                  ...paymentDetails,
+                                                  amount: e.target.value,
+                                                })
+                                              }
+                                              className="w-full px-3 py-2 border rounded-lg"
+                                            />
+                                          </div>
+                                          <div>
+                                            <label className="block text-sm font-medium mb-1">
+                                              Late Fine (₹)
+                                            </label>
+                                            <input
+                                              type="number"
+                                              value={paymentDetails.lateFine}
+                                              onChange={(e) =>
+                                                setPaymentDetails({
+                                                  ...paymentDetails,
+                                                  lateFine: e.target.value,
+                                                })
+                                              }
+                                              className="w-full px-3 py-2 border rounded-lg"
+                                            />
+                                          </div>
+                                          <div>
+                                            <label className="block text-sm font-medium mb-1">
+                                              Payment Date
+                                            </label>
+                                            <input
+                                              type="date"
+                                              value={paymentDetails.date}
+                                              onChange={(e) =>
+                                                setPaymentDetails({
+                                                  ...paymentDetails,
+                                                  date: e.target.value,
+                                                })
+                                              }
+                                              className="w-full px-3 py-2 border rounded-lg"
+                                            />
+                                          </div>
+                                          <div>
+                                            <label className="block text-sm font-medium mb-1">
+                                              Payment Mode
+                                            </label>
+                                            <select
+                                              value={paymentDetails.mode}
+                                              onChange={(e) =>
+                                                setPaymentDetails({
+                                                  ...paymentDetails,
+                                                  mode: e.target.value,
+                                                })
+                                              }
+                                              className="w-full px-3 py-2 border rounded-lg"
+                                            >
+                                              <option value="Cash Manual">
+                                                Cash Manual
+                                              </option>
+                                              <option value="Bank Transfer">
+                                                Bank Transfer
+                                              </option>
+                                              <option value="Cheque">
+                                                Cheque
+                                              </option>
+                                              <option value="UPI">UPI</option>
+                                            </select>
+                                          </div>
                                         </div>
                                       </td>
                                     </tr>
@@ -636,14 +908,13 @@ const FeeManagementSystem: React.FC = () => {
                                 </React.Fragment>
                               );
                             })}
-
-                            {/* Total row */}
-                            <tr className="bg-gray-100 font-semibold">
+                            <tr className="bg-gray-100 font-bold">
                               <td colSpan={4} className="px-4 py-3 text-right">
                                 Total
                               </td>
-                              <td className="px-4 py-3">{total}</td>
-                              <td colSpan={2}></td>
+                              <td colSpan={3} className="px-4 py-3">
+                                ₹{total}
+                              </td>
                             </tr>
                           </tbody>
                         </table>
@@ -651,228 +922,6 @@ const FeeManagementSystem: React.FC = () => {
                     </div>
                   );
                 })}
-
-                {(() => {
-                  const semester = selectedStudent.semesters[selectedSemester];
-                  const total = calculateTotal(semester.fees);
-
-                  return (
-                    <div>
-                      <div className="grid grid-cols-2 gap-4 mb-6 bg-gray-50 p-4 rounded-lg">
-                        <div>
-                          <div className="text-sm text-gray-600">DKP</div>
-                          <div className="font-semibold">{semester.dkp}</div>
-                        </div>
-                        <div>
-                          <div className="text-sm text-gray-600">Duration</div>
-                          <div className="font-semibold">
-                            {semester.startMonth} - {semester.endMonth}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-sm text-gray-600">
-                            DKP Exam Date
-                          </div>
-                          <div className="font-semibold">
-                            {semester.examDate}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-sm text-gray-600">
-                            Marks Obtained
-                          </div>
-                          <div className="font-semibold">
-                            {semester.marksObtained > 0
-                              ? `${semester.marksObtained} - ${semester.grade}`
-                              : "-"}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="border rounded-lg overflow-x-auto">
-                        <table className="w-full">
-                          <thead className="bg-gray-100">
-                            <tr>
-                              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-r">
-                                Details
-                              </th>
-                              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-r">
-                                Date
-                              </th>
-                              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-r">
-                                Fees
-                              </th>
-                              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-r">
-                                Late Fine
-                              </th>
-                              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-r">
-                                Total Amount
-                              </th>
-                              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-r">
-                                Payment Mode
-                              </th>
-                              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
-                                Action
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-200">
-                            {semester.fees.map((fee, index) => (
-                              <React.Fragment key={index}>
-                                <tr
-                                  className={
-                                    editingRow === index ? "bg-yellow-50" : ""
-                                  }
-                                >
-                                  <td className="px-4 py-3 border-r font-medium">
-                                    {fee.details}
-                                  </td>
-                                  <td className="px-4 py-3 border-r text-sm">
-                                    {fee.date || "-"}
-                                  </td>
-                                  <td className="px-4 py-3 border-r">
-                                    {fee.fees}
-                                  </td>
-                                  <td className="px-4 py-3 border-r text-red-600">
-                                    {fee.lateFine > 0 ? fee.lateFine : "0-"}
-                                  </td>
-                                  <td className="px-4 py-3 border-r font-semibold">
-                                    {fee.totalAmount}
-                                  </td>
-                                  <td className="px-4 py-3 border-r text-sm">
-                                    {fee.paymentMode || "-"}
-                                  </td>
-                                  <td className="px-4 py-3">
-                                    {editingRow === index ? (
-                                      <div className="flex space-x-2">
-                                        <button
-                                          onClick={handleSavePayment}
-                                          className="text-green-600 hover:text-green-700"
-                                          title="Save"
-                                        >
-                                          <Save size={18} />
-                                        </button>
-                                        <button
-                                          onClick={() => setEditingRow(null)}
-                                          className="text-red-600 hover:text-red-700"
-                                          title="Cancel"
-                                        >
-                                          <X size={18} />
-                                        </button>
-                                      </div>
-                                    ) : (
-                                      <button
-                                        onClick={() => handleEditRow(index)}
-                                        className="text-blue-600 hover:text-blue-700"
-                                        title="Edit Payment"
-                                      >
-                                        <Edit2 size={18} />
-                                      </button>
-                                    )}
-                                  </td>
-                                </tr>
-                                {editingRow === index && (
-                                  <tr className="bg-yellow-50">
-                                    <td colSpan={7} className="px-4 py-4">
-                                      <div className="grid grid-cols-4 gap-4">
-                                        <div>
-                                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Fees (₹)
-                                          </label>
-                                          <input
-                                            type="number"
-                                            value={paymentDetails.fees}
-                                            onChange={(e) =>
-                                              setPaymentDetails({
-                                                ...paymentDetails,
-                                                fees: e.target.value,
-                                              })
-                                            }
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                          />
-                                        </div>
-                                        <div>
-                                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Late Fine (₹)
-                                          </label>
-                                          <input
-                                            type="number"
-                                            value={paymentDetails.lateFine}
-                                            onChange={(e) =>
-                                              setPaymentDetails({
-                                                ...paymentDetails,
-                                                lateFine: e.target.value,
-                                              })
-                                            }
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                          />
-                                        </div>
-                                        <div>
-                                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Payment Date
-                                          </label>
-                                          <input
-                                            type="date"
-                                            value={paymentDetails.date}
-                                            onChange={(e) =>
-                                              setPaymentDetails({
-                                                ...paymentDetails,
-                                                date: e.target.value,
-                                              })
-                                            }
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                          />
-                                        </div>
-                                        <div>
-                                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Payment Mode
-                                          </label>
-                                          <select
-                                            value={paymentDetails.method}
-                                            onChange={(e) =>
-                                              setPaymentDetails({
-                                                ...paymentDetails,
-                                                method: e.target.value,
-                                              })
-                                            }
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                          >
-                                            <option value="via website">
-                                              Via Website
-                                            </option>
-                                            <option value="cash manual">
-                                              Cash Manual
-                                            </option>
-                                            <option value="bank transfer">
-                                              Bank Transfer
-                                            </option>
-                                            <option value="cheque">
-                                              Cheque
-                                            </option>
-                                          </select>
-                                        </div>
-                                      </div>
-                                    </td>
-                                  </tr>
-                                )}
-                              </React.Fragment>
-                            ))}
-                            <tr className="bg-gray-50 font-semibold">
-                              <td
-                                colSpan={4}
-                                className="px-4 py-3 text-right border-r"
-                              >
-                                Total
-                              </td>
-                              <td className="px-4 py-3 border-r">{total}</td>
-                              <td colSpan={2} className="px-4 py-3"></td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  );
-                })()}
               </div>
             ) : (
               <div className="bg-white rounded-lg shadow-sm p-12 text-center">
@@ -882,7 +931,7 @@ const FeeManagementSystem: React.FC = () => {
                 </h3>
                 <p className="text-gray-500">
                   Search and select a student to view and manage their fee
-                  details across 4 semesters
+                  details
                 </p>
               </div>
             )}

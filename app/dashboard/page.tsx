@@ -1,4 +1,5 @@
 "use client";
+import AdminSchedulePage from "@/components/AdminSchedulePage";
 import AdmissionTakenPage from "@/components/AdmissionPage";
 import BookingPanel from "@/components/BookingPanel";
 import CmsEditor from "@/components/CmsEditor";
@@ -18,6 +19,7 @@ const SECTIONS = [
   "Students",
   "Courses",
   "AdmissionPage",
+  "AdminSchedulePage",
   "CreateCourse",
   "Study Materials",
   "Fees Management",
@@ -43,7 +45,7 @@ export default function AdminDashboard() {
               onClick={() => {
                 localStorage.removeItem("admin_token");
                 localStorage.removeItem("admin");
-                window.location.href = "/login";
+                window.location.href = "/";
               }}
               className="px-3 py-1 border rounded"
             >
@@ -60,6 +62,8 @@ export default function AdminDashboard() {
           {section === "AdmissionPage" && <AdmissionTakenPage />}
           {section === "Study Materials" && <MaterialsPanel />}
           {section === "Fees Management" && <FeesPanel />}
+          {section === "AdminSchedulePage" && <AdminSchedulePage />}
+
           {section === "Consultation Bookings" && <BookingPanel />}
           {section === "Reviews" && <ReviewsPanel />}
         </section>

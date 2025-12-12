@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Plus, Trash2, Save } from "lucide-react";
+import axios from "axios";
 
 // Types
 export type CourseType = "ONLINE" | "OFFLINE";
@@ -16,11 +17,11 @@ export interface DaysJson {
 }
 
 export interface Semester {
-  id: string;
+  // manual-only semester number
+  number: number;
   name: string;
   startDate: string;
   endDate: string;
-
   fees: number;
   lateFeeDate?: string;
   lateFeeFine?: number;
@@ -28,10 +29,11 @@ export interface Semester {
 }
 
 export interface Branch {
-  id: string;
+  branchCode: string; // manual input
   name: string;
   color: string;
   durationMonths: number;
+
   classType: ClassType;
   daysPerWeek?: number;
   classesPerMonth?: number;
@@ -42,9 +44,11 @@ export interface Branch {
 }
 
 export interface Course {
-  id: string;
+  rank: number;
   name: string;
   type: CourseType;
+  courseDuration: number;
+  courseCode?: string;
   description: string;
   pdf: string | null;
   image: string | null;
@@ -65,10 +69,11 @@ export const DAYS: Array<{ key: keyof DaysJson; label: string }> = [
 
 export default function CourseAdminPage() {
   const [course, setCourse] = useState<Course>({
-    id: "",
+    rank: 0,
     name: "",
     type: "OFFLINE",
     description: "",
+    courseDuration: 0,
     pdf: null,
     image: null,
     gridTitle: [""],
@@ -99,12 +104,13 @@ export default function CourseAdminPage() {
 
   const addBranch = () => {
     const newBranch: Branch = {
-      id: `branch_${Date.now()}`,
+      branchCode: "",
       name: "",
       color: "#4287f5",
       durationMonths: 0,
       classType: "WEEKLY",
       daysPerWeek: 0,
+      classesPerMonth: 0,
       classHours: 0,
       daysJson: {},
       semesters: [],
@@ -116,7 +122,7 @@ export default function CourseAdminPage() {
     }));
   };
 
-  const updateBranch = (index: number, field: string, value: any) => {
+  const updateBranch = (index: number, field: keyof Branch, value: any) => {
     setCourse((prev) => ({
       ...prev,
       branches: prev.branches.map((branch, i) =>
@@ -152,7 +158,7 @@ export default function CourseAdminPage() {
 
   const addSemester = (branchIndex: number) => {
     const newSemester: Semester = {
-      id: `sem_${Date.now()}`,
+      number: 0, // manual input expected; default 0
       name: "",
       startDate: "",
       endDate: "",
@@ -173,7 +179,7 @@ export default function CourseAdminPage() {
   const updateSemester = (
     branchIndex: number,
     semesterIndex: number,
-    field: string,
+    field: keyof Semester,
     value: any
   ) => {
     setCourse((prev) => ({
@@ -205,6 +211,7 @@ export default function CourseAdminPage() {
     }));
   };
 
+  // Productionize it carefully
   const handleFileUpload = async (
     e: React.ChangeEvent<HTMLInputElement>,
     type: "pdf" | "image"
@@ -212,20 +219,89 @@ export default function CourseAdminPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Convert file to base64
-    const reader = new FileReader();
-    reader.onload = () => {
-      const base64 = reader.result as string;
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("type", type);
+
+    try {
+      const res = await axios.post(
+        "http://localhost:5000/upload-file",
+        formData,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+        }
+      );
+
+      // Cloudinary URL returned from backend
+      const uploadedUrl = res.data.url;
+
       setCourse((prev) => ({
         ...prev,
-        [type]: base64,
+        [type]: uploadedUrl, // store cloudinary url
       }));
-    };
-    reader.readAsDataURL(file);
+    } catch (err) {
+      console.error("Upload failed", err);
+    }
   };
 
-  const handleSubmit = () => {
-    console.log("Course Data:", JSON.stringify([course], null, 2));
+  const handleSubmit = async () => {
+    const mappedPayload: any = {
+      ranking: course.rank,
+      name: course.name,
+      type: course.type?.toLowerCase(), // ONLINE → online
+      description: course.description,
+      duration: course.courseDuration,
+      bannerpdf: course.pdf,
+      bannerimage: course.image,
+      courseCode: course.module,
+      gridTitle: course.gridTitle,
+      courseType: course.type, // You can adjust if needed
+
+      branches: course.branches.map((b) => ({
+        name: b.name,
+        color: b.color,
+        durationMonths: b.durationMonths,
+        classType: b.classType?.toLowerCase(), // MONTHLY → monthly, WEEKLY → weekly
+        branchCode: b.branchCode,
+        // class durations: backend wants daysPerClassType & classHour
+        daysPerClassType:
+          b.classType === "WEEKLY" ? b.daysPerWeek : b.classesPerMonth,
+
+        classHour: b.classHours,
+
+        // backend expects STRING JSON
+        daysJSON: JSON.stringify(b.daysJson),
+
+        // semesters spelling must match backend "semsters"
+        semsters: b.semesters.map((s) => ({
+          name: s.name,
+          number: s.number,
+          startDate: s.startDate,
+          endDate: s.endDate,
+          fees: s.fees,
+          admissionFee: s.admissionFee,
+          lateFeeDate: s.lateFeeDate || null,
+          lateFeeFine: s.lateFeeFine || null,
+        })),
+      })),
+    };
+    const token = localStorage.getItem("admin_token");
+
+    const res = await axios.post(
+      "http://localhost:5000/api/v1/admin/course",
+      mappedPayload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: token ? `Bearer ${token}` : "",
+        },
+      }
+    );
+
+    console.log(res);
+
+    // Final sanity: ensure semester.number is number (already enforced)
+    console.log("Course Data:", JSON.stringify(course, null, 2));
     alert("Course saved! Check console for JSON output.");
   };
 
@@ -246,12 +322,14 @@ export default function CourseAdminPage() {
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Course ID
+                  Course Rank
                 </label>
                 <input
-                  type="text"
-                  value={course.id}
-                  onChange={(e) => setCourse({ ...course, id: e.target.value })}
+                  type="number"
+                  value={Number(course.rank)}
+                  onChange={(e) =>
+                    setCourse({ ...course, rank: Number(e.target.value) })
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="course_web_dev"
                 />
@@ -269,6 +347,23 @@ export default function CourseAdminPage() {
                   }
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="Full Stack Web Development"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Duration
+                </label>
+                <input
+                  type="number"
+                  value={Number(course.courseDuration)}
+                  onChange={(e) =>
+                    setCourse({
+                      ...course,
+                      courseDuration: Number(e.target.value),
+                    })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Duration in months"
                 />
               </div>
             </div>
@@ -412,7 +507,8 @@ export default function CourseAdminPage() {
               >
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-semibold text-gray-700">
-                    Branch {branchIndex + 1}: {branch.name || "Unnamed"}
+                    Branch {branchIndex + 1}:{" "}
+                    {branch.name || branch.branchCode || "Unnamed"}
                   </h3>
                   <button
                     onClick={() => removeBranch(branchIndex)}
@@ -425,13 +521,13 @@ export default function CourseAdminPage() {
                 <div className="grid grid-cols-2 gap-4 mb-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Branch ID
+                      Branch Code
                     </label>
                     <input
                       type="text"
-                      value={branch.id}
+                      value={String(branch.branchCode || "")}
                       onChange={(e) =>
-                        updateBranch(branchIndex, "id", e.target.value)
+                        updateBranch(branchIndex, "branchCode", e.target.value)
                       }
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="branch_morning_web"
@@ -492,7 +588,11 @@ export default function CourseAdminPage() {
                     <select
                       value={branch.classType}
                       onChange={(e) =>
-                        updateBranch(branchIndex, "classType", e.target.value)
+                        updateBranch(
+                          branchIndex,
+                          "classType",
+                          e.target.value as ClassType
+                        )
                       }
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
@@ -611,7 +711,7 @@ export default function CourseAdminPage() {
                     >
                       <div className="flex justify-between items-center mb-2">
                         <h5 className="text-sm font-semibold text-gray-700">
-                          Semester {semesterIndex + 1}
+                          Semester {semester.number || semesterIndex + 1}
                         </h5>
                         <button
                           onClick={() =>
@@ -626,21 +726,21 @@ export default function CourseAdminPage() {
                       <div className="grid grid-cols-2 gap-3">
                         <div>
                           <label className="block text-xs font-medium text-gray-700 mb-1">
-                            Semester ID
+                            Semester Number
                           </label>
                           <input
-                            type="text"
-                            value={semester.id}
+                            type="number"
+                            value={semester.number}
                             onChange={(e) =>
                               updateSemester(
                                 branchIndex,
                                 semesterIndex,
-                                "id",
-                                e.target.value
+                                "number",
+                                Number(e.target.value)
                               )
                             }
                             className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-green-500"
-                            placeholder="sem1_web_morning"
+                            placeholder="1"
                           />
                         </div>
 
