@@ -234,7 +234,7 @@ const mapCourseToApiPayload = (course: Course) => {
 
 /* ------------------- Axios instance helper ------------------- */
 const api = axios.create({
-  baseURL: "http://api.astrokama.com/api/v1/admin",
+  baseURL: "https://api.astrokama.com/api/v1/admin",
   headers: { "Content-Type": "application/json" },
 });
 api.interceptors.request.use((config) => {
@@ -247,7 +247,7 @@ api.interceptors.request.use((config) => {
 });
 
 /* ------------------- Upload helper ------------------- */
-const UPLOAD_URL = "http://api.astrokama.com/upload-file"; // change if your route differs
+const UPLOAD_URL = "https://api.astrokama.com/upload-file"; // change if your route differs
 
 /**
  * Uploads a file and returns the full URL returned by the API (or null).
@@ -570,7 +570,7 @@ const CoursesAdminPanel: React.FC = () => {
     if (!maybeUrl) return null;
     if (maybeUrl.startsWith("http")) return maybeUrl;
     // fallback: build using server base
-    return `http://api.astrokama.com/uploads/${maybeUrl}`;
+    return `https://api.astrokama.com/uploads/${maybeUrl}`;
   };
 
   // handle file input upload for image/pdf

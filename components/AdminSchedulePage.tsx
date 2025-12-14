@@ -32,7 +32,7 @@ interface GenerateForm {
 
 /* ================= CONFIG ================= */
 
-const API_BASE = "http://api.astrokama.com/api/v1/admin";
+const API_BASE = "https://api.astrokama.com/api/v1/admin";
 
 /* ================= COMPONENT ================= */
 

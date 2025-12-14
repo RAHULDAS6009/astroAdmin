@@ -1,1 +1,1 @@
-export const BACKEND_URL = "http://api.astrokama.com";
+export const BACKEND_URL = "https://api.astrokama.com";

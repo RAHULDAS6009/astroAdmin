@@ -60,7 +60,7 @@ export default function AdmissionTakenPage() {
   );
 
   const itemsPerPage = 10;
-  const API_BASE_URL = "http://api.astrokama.com/api/v1";
+  const API_BASE_URL = "https://api.astrokama.com/api/v1";
 
   // Fetch students from API
   useEffect(() => {
