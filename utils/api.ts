@@ -1,7 +1,7 @@
 import axios from "axios";
 
 export const api = axios.create({
-  baseURL: "https://api.astrokama.com/api/v1/admin",
+  baseURL: "https://api.rahuldev.live/api/v1/admin",
   headers: { "Content-Type": "application/json" },
 });
 

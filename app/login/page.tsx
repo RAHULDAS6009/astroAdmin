@@ -12,7 +12,7 @@ const AdminLogin = () => {
 
     try {
       const res = await axios.post(
-        "https://api.astrokama.com/api/v1/admin/login",
+        "https://api.rahuldev.live/api/v1/admin/login",
         {
           email,
           password,

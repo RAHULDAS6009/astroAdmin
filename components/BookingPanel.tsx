@@ -40,7 +40,7 @@ interface UploadedFile {
 
 const ConsultationAdmin: React.FC = () => {
   const [bookings, setBookings] = useState<Booking[]>([]);
-  const API_BASE = "https://api.astrokama.com/api/v1/admin";
+  const API_BASE = "https://api.rahuldev.live/api/v1/admin";
 
   const [filter, setFilter] = useState<
     "all" | "pending" | "consulted" | "cancelled"

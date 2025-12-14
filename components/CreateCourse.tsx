@@ -225,7 +225,7 @@ export default function CourseAdminPage() {
 
     try {
       const res = await axios.post(
-        "https://api.astrokama.com/upload-file",
+        "https://api.rahuldev.live/upload-file",
         formData,
         {
           headers: { "Content-Type": "multipart/form-data" },
@@ -288,7 +288,7 @@ export default function CourseAdminPage() {
     const token = localStorage.getItem("admin_token");
 
     const res = await axios.post(
-      "https://api.astrokama.com/api/v1/admin/course",
+      "https://api.rahuldev.live/api/v1/admin/course",
       mappedPayload,
       {
         headers: {
