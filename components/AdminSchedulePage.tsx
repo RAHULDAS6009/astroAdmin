@@ -1,599 +1,620 @@
-import React, { useState, useEffect } from "react";
+"use client";
+
+import React, { useEffect, useState } from "react";
 import {
   Calendar,
   Clock,
-  Plus,
-  Trash2,
   Lock,
   Unlock,
-  Filter,
-  BarChart3,
-  X,
+  Plus,
+  RefreshCw,
+  Info,
 } from "lucide-react";
 
-interface TimeSlot {
-  id: number;
+/* ================= TYPES ================= */
+
+type ViewType = "manage" | "generate";
+
+interface Slot {
+  id: string;
+  startTime: string;
+  endTime: string;
+  isBooked: boolean;
+  isBlocked: boolean;
+}
+
+interface GenerateForm {
   date: string;
   startTime: string;
   endTime: string;
   duration: number;
-  slotType: string;
-  isBooked: boolean;
-  isBlocked: boolean;
-  consultation?: {
-    id: number;
-    fullName: string;
-    phoneNumber: string;
-    consultationType: string;
-  };
 }
 
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1/admin";
+/* ================= CONFIG ================= */
 
-const AdminSchedulePage = () => {
-  const [slots, setSlots] = useState<TimeSlot[]>([]);
-  const [stats, setStats] = useState({
-    total: 0,
-    booked: 0,
-    blocked: 0,
-    available: 0,
-  });
-  const [loading, setLoading] = useState(false);
-  const [filterStatus, setFilterStatus] = useState<
-    "all" | "available" | "booked" | "blocked"
-  >("all");
+const API_BASE = "http://api.astrokama.com/api/v1/admin";
 
-  const [showBulkForm, setShowBulkForm] = useState(false);
-  const [bulkForm, setBulkForm] = useState({
-    startDate: "",
-    endDate: "",
-    skipWeekends: true,
-    slotType: "full",
-    timeSlots: [{ startTime: "09:00", endTime: "10:00", duration: 60 }],
+/* ================= COMPONENT ================= */
+
+const AdminSlotManager: React.FC = () => {
+  const [currentView, setCurrentView] = useState<ViewType>("manage");
+  const [selectedDate, setSelectedDate] = useState<string>("");
+  const [slots, setSlots] = useState<Slot[]>([]);
+  const [selectedSlots, setSelectedSlots] = useState<string[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
+
+  const [generateForm, setGenerateForm] = useState<GenerateForm>({
+    date: "",
+    startTime: "09:00",
+    endTime: "18:00",
+    duration: 30,
   });
 
-  const today = new Date().toISOString().split("T")[0];
-  const threeMonthsLater = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000)
-    .toISOString()
-    .split("T")[0];
-  const [dateRange, setDateRange] = useState({
-    startDate: today,
-    endDate: threeMonthsLater,
+  const headers = (): HeadersInit => ({
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${localStorage.getItem("admin_token") ?? ""}`,
   });
+
+  /* ================= EFFECTS ================= */
 
   useEffect(() => {
-    fetchSlots();
-    fetchStats();
-  }, [dateRange, filterStatus]);
+    if (selectedDate) {
+      fetchSlots();
+    }
+  }, [selectedDate]);
 
-  const fetchSlots = async () => {
+  /* ================= API ================= */
+
+  const fetchSlots = async (): Promise<void> => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({
-        startDate: dateRange.startDate,
-        endDate: dateRange.endDate,
-        ...(filterStatus !== "all" && { status: filterStatus }),
-      });
-
-      const res = await fetch(`${API_BASE}/schedule/slots?${params}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      const res = await fetch(`${API_BASE}/slots?date=${selectedDate}`, {
+        headers: headers(),
       });
       const data = await res.json();
-      if (data.success) setSlots(data.data);
+      setSlots(data?.data ?? []);
     } catch (err) {
-      console.error(err);
+      console.error("Error fetching slots:", err);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchStats = async () => {
+  const handleGenerateSlots = async (): Promise<void> => {
+    setLoading(true);
     try {
-      const params = new URLSearchParams({
-        startDate: dateRange.startDate,
-        endDate: dateRange.endDate,
-      });
-      const res = await fetch(`${API_BASE}/schedule/slots/stats?${params}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-      });
-      const data = await res.json();
-      if (data.success) setStats(data.data);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleBulkCreate = async () => {
-    try {
-      const res = await fetch(`${API_BASE}/schedule/slots/bulk`, {
+      const res = await fetch(`${API_BASE}/slots/generate`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        body: JSON.stringify(bulkForm),
+        headers: headers(),
+        body: JSON.stringify(generateForm),
       });
-      const data = await res.json();
-      if (data.success) {
-        alert(`Created ${data.count} slots successfully!`);
-        setShowBulkForm(false);
-        fetchSlots();
-        fetchStats();
-      }
-    } catch (err) {
-      console.error(err);
-      alert("Failed to create slots");
-    }
-  };
 
-  const toggleBlockSlot = async (id: number, isBlocked: boolean) => {
-    try {
-      const res = await fetch(`${API_BASE}/schedule/slots/${id}/block`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        body: JSON.stringify({ isBlocked: !isBlocked }),
-      });
-      if (res.ok) fetchSlots();
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const deleteSlot = async (id: number) => {
-    if (!confirm("Delete this slot?")) return;
-    try {
-      const res = await fetch(`${API_BASE}/schedule/slots/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-      });
       if (res.ok) {
+        alert("✅ Slots generated successfully!");
+        setSelectedDate(generateForm.date);
+        setCurrentView("manage");
         fetchSlots();
-        fetchStats();
       }
-    } catch (err) {
-      console.error(err);
+    } catch {
+      alert("❌ Error generating slots");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const addTimeSlot = () => {
-    setBulkForm((prev) => ({
-      ...prev,
-      timeSlots: [
-        ...prev.timeSlots,
-        { startTime: "09:00", endTime: "10:00", duration: 60 },
-      ],
-    }));
+  const toggleSlot = (id: string): void => {
+    setSelectedSlots((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
   };
 
-  const removeTimeSlot = (index: number) => {
-    setBulkForm((prev) => ({
-      ...prev,
-      timeSlots: prev.timeSlots.filter((_, i) => i !== index),
-    }));
+  const selectAllAvailable = (): void => {
+    const availableIds = slots
+      .filter((s) => !s.isBooked && !s.isBlocked)
+      .map((s) => s.id);
+
+    setSelectedSlots(availableIds);
   };
 
-  const updateTimeSlot = (
-    index: number,
-    field: string,
-    value: string | number
-  ) => {
-    setBulkForm((prev) => ({
-      ...prev,
-      timeSlots: prev.timeSlots.map((slot, i) =>
-        i === index ? { ...slot, [field]: value } : slot
-      ),
-    }));
+  const blockSlots = async (): Promise<void> => {
+    if (!selectedSlots.length) return alert("Please select slots first");
+
+    setLoading(true);
+    try {
+      await fetch(`${API_BASE}/slots/block`, {
+        method: "PUT",
+        headers: headers(),
+        body: JSON.stringify({ slotIds: selectedSlots }),
+      });
+      alert("✅ Slots blocked successfully");
+      setSelectedSlots([]);
+      fetchSlots();
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const groupSlotsByDate = () => {
-    return slots.reduce((acc, slot) => {
-      const date = new Date(slot.date).toISOString().split("T")[0];
-      if (!acc[date]) acc[date] = [];
-      acc[date].push(slot);
-      return acc;
-    }, {} as Record<string, TimeSlot[]>);
+  const unblockSlots = async (): Promise<void> => {
+    if (!selectedSlots.length) return alert("Please select slots first");
+
+    setLoading(true);
+    try {
+      await fetch(`${API_BASE}/slots/unblock`, {
+        method: "PUT",
+        headers: headers(),
+        body: JSON.stringify({ slotIds: selectedSlots }),
+      });
+      alert("✅ Slots unblocked successfully");
+      setSelectedSlots([]);
+      fetchSlots();
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const groupedSlots = groupSlotsByDate();
-  const sortedDates = Object.keys(groupedSlots).sort();
+  const blockFullDay = async (): Promise<void> => {
+    if (!selectedDate) return;
+
+    const ids = slots.filter((s) => !s.isBooked).map((s) => s.id);
+    if (!ids.length) return alert("No available slots to block");
+
+    setLoading(true);
+    try {
+      await fetch(`${API_BASE}/slots/block`, {
+        method: "PUT",
+        headers: headers(),
+        body: JSON.stringify({ slotIds: ids }),
+      });
+      alert("✅ Full day blocked successfully");
+      fetchSlots();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const unblockFullDay = async (): Promise<void> => {
+    const ids = slots.filter((s) => s.isBlocked).map((s) => s.id);
+    if (!ids.length) return alert("No blocked slots to unblock");
+
+    setLoading(true);
+    try {
+      await fetch(`${API_BASE}/slots/unblock`, {
+        method: "PUT",
+        headers: headers(),
+        body: JSON.stringify({ slotIds: ids }),
+      });
+      alert("✅ Full day unblocked successfully");
+      fetchSlots();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /* ================= STATS ================= */
+
+  const stats = {
+    total: slots.length,
+    booked: slots.filter((s) => s.isBooked).length,
+    blocked: slots.filter((s) => s.isBlocked).length,
+    available: slots.filter((s) => !s.isBooked && !s.isBlocked).length,
+  };
+
+  /* ================= JSX ================= */
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Schedule Management
-          </h1>
-          <p className="text-gray-600">
-            Manage consultation time slots and availability
-          </p>
-        </div>
+        <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
+          <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-3">
+                <Calendar className="text-indigo-600" size={32} />
+                Appointment Slot Manager
+              </h1>
+              <p className="text-gray-500 mt-1">
+                Manage your booking availability
+              </p>
+            </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Total Slots</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {stats.total}
-                </p>
-              </div>
-              <Calendar className="w-8 h-8 text-blue-500" />
-            </div>
-          </div>
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Available</p>
-                <p className="text-2xl font-bold text-green-600">
-                  {stats.available}
-                </p>
-              </div>
-              <Clock className="w-8 h-8 text-green-500" />
-            </div>
-          </div>
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Booked</p>
-                <p className="text-2xl font-bold text-orange-600">
-                  {stats.booked}
-                </p>
-              </div>
-              <BarChart3 className="w-8 h-8 text-orange-500" />
-            </div>
-          </div>
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Blocked</p>
-                <p className="text-2xl font-bold text-red-600">
-                  {stats.blocked}
-                </p>
-              </div>
-              <Lock className="w-8 h-8 text-red-500" />
-            </div>
-          </div>
-        </div>
-
-        {/* Filters & Actions */}
-        <div className="bg-white rounded-lg shadow p-4 mb-6">
-          <div className="flex flex-wrap gap-4 items-end">
-            <div className="flex-1 min-w-[200px]">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Start Date
-              </label>
-              <input
-                type="date"
-                value={dateRange.startDate}
-                onChange={(e) =>
-                  setDateRange((prev) => ({
-                    ...prev,
-                    startDate: e.target.value,
-                  }))
-                }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div className="flex-1 min-w-[200px]">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                End Date
-              </label>
-              <input
-                type="date"
-                value={dateRange.endDate}
-                onChange={(e) =>
-                  setDateRange((prev) => ({ ...prev, endDate: e.target.value }))
-                }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div className="flex-1 min-w-[200px]">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Filter Status
-              </label>
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value as any)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            <div className="flex gap-2">
+              <button
+                onClick={() => setCurrentView("manage")}
+                className={`px-6 py-3 rounded-xl font-semibold transition-all ${
+                  currentView === "manage"
+                    ? "bg-indigo-600 text-white shadow-lg"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
               >
-                <option value="all">All Slots</option>
-                <option value="available">Available</option>
-                <option value="booked">Booked</option>
-                <option value="blocked">Blocked</option>
-              </select>
+                Manage Slots
+              </button>
+              <button
+                onClick={() => setCurrentView("generate")}
+                className={`px-6 py-3 rounded-xl font-semibold transition-all flex items-center gap-2 ${
+                  currentView === "generate"
+                    ? "bg-indigo-600 text-white shadow-lg"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                <Plus size={20} />
+                Create Slots
+              </button>
             </div>
-            <button
-              onClick={() => setShowBulkForm(true)}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
-            >
-              <Plus className="w-4 h-4" />
-              Create Slots
-            </button>
           </div>
         </div>
 
-        {/* Slots List */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          {loading ? (
-            <div className="p-12 text-center text-gray-500">
-              Loading slots...
+        {/* Manage View */}
+        {currentView === "manage" && (
+          <div className="space-y-6">
+            {/* Date Selector */}
+            <div className="bg-white rounded-2xl shadow-lg p-6">
+              <label className="block text-sm font-semibold text-gray-700 mb-3">
+                Select a Date
+              </label>
+              <div className="flex gap-3">
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:outline-none text-lg"
+                />
+                {selectedDate && (
+                  <button
+                    onClick={fetchSlots}
+                    disabled={loading}
+                    className="px-6 py-3 bg-indigo-100 text-indigo-600 rounded-xl hover:bg-indigo-200 transition-all flex items-center gap-2"
+                  >
+                    <RefreshCw
+                      size={20}
+                      className={loading ? "animate-spin" : ""}
+                    />
+                    Refresh
+                  </button>
+                )}
+              </div>
             </div>
-          ) : sortedDates.length === 0 ? (
-            <div className="p-12 text-center text-gray-500">
-              No slots found for selected range
-            </div>
-          ) : (
-            <div className="divide-y divide-gray-200">
-              {sortedDates.map((date) => (
-                <div key={date} className="p-4">
-                  <h3 className="font-semibold text-lg text-gray-900 mb-3">
-                    {new Date(date).toLocaleDateString("en-US", {
-                      weekday: "long",
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    })}
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {groupedSlots[date].map((slot) => (
-                      <div
-                        key={slot.id}
-                        className={`p-4 rounded-lg border-2 ${
-                          slot.isBooked
-                            ? "bg-orange-50 border-orange-200"
-                            : slot.isBlocked
-                            ? "bg-red-50 border-red-200"
-                            : "bg-green-50 border-green-200"
-                        }`}
-                      >
-                        <div className="flex items-start justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <Clock className="w-4 h-4" />
-                            <span className="font-semibold">
-                              {slot.startTime} - {slot.endTime}
-                            </span>
-                          </div>
-                          <span
-                            className={`px-2 py-1 text-xs font-medium rounded ${
-                              slot.isBooked
-                                ? "bg-orange-100 text-orange-800"
-                                : slot.isBlocked
-                                ? "bg-red-100 text-red-800"
-                                : "bg-green-100 text-green-800"
-                            }`}
-                          >
-                            {slot.isBooked
-                              ? "Booked"
-                              : slot.isBlocked
-                              ? "Blocked"
-                              : "Available"}
-                          </span>
-                        </div>
 
-                        {slot.consultation && (
-                          <div className="text-sm text-gray-600 mb-2">
-                            <p className="font-medium">
-                              {slot.consultation.fullName}
-                            </p>
-                            <p>{slot.consultation.phoneNumber}</p>
-                            <p className="text-xs">
-                              {slot.consultation.consultationType}
-                            </p>
-                          </div>
-                        )}
-
-                        <div className="flex gap-2 mt-3">
-                          {!slot.isBooked && (
-                            <>
-                              <button
-                                onClick={() =>
-                                  toggleBlockSlot(slot.id, slot.isBlocked)
-                                }
-                                className={`flex-1 px-3 py-1 text-sm rounded flex items-center justify-center gap-1 ${
-                                  slot.isBlocked
-                                    ? "bg-green-600 text-white hover:bg-green-700"
-                                    : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                                }`}
-                              >
-                                {slot.isBlocked ? (
-                                  <Unlock className="w-3 h-3" />
-                                ) : (
-                                  <Lock className="w-3 h-3" />
-                                )}
-                                {slot.isBlocked ? "Unblock" : "Block"}
-                              </button>
-                              <button
-                                onClick={() => deleteSlot(slot.id)}
-                                className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 flex items-center gap-1"
-                              >
-                                <Trash2 className="w-3 h-3" />
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    ))}
+            {selectedDate && slots.length > 0 && (
+              <>
+                {/* Stats Cards */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="bg-white rounded-xl shadow p-5">
+                    <div className="text-3xl font-bold text-gray-800">
+                      {stats.total}
+                    </div>
+                    <div className="text-sm text-gray-500 mt-1">
+                      Total Slots
+                    </div>
+                  </div>
+                  <div className="bg-green-50 rounded-xl shadow p-5 border-2 border-green-200">
+                    <div className="text-3xl font-bold text-green-700">
+                      {stats.available}
+                    </div>
+                    <div className="text-sm text-green-600 mt-1">Available</div>
+                  </div>
+                  <div className="bg-blue-50 rounded-xl shadow p-5 border-2 border-blue-200">
+                    <div className="text-3xl font-bold text-blue-700">
+                      {stats.booked}
+                    </div>
+                    <div className="text-sm text-blue-600 mt-1">Booked</div>
+                  </div>
+                  <div className="bg-red-50 rounded-xl shadow p-5 border-2 border-red-200">
+                    <div className="text-3xl font-bold text-red-700">
+                      {stats.blocked}
+                    </div>
+                    <div className="text-sm text-red-600 mt-1">Blocked</div>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
 
-      {/* Bulk Create Modal */}
-      {showBulkForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-2xl font-bold">Create Time Slots</h2>
+                {/* Legend */}
+                <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-5 border border-indigo-100">
+                  <div className="flex items-start gap-2 mb-3">
+                    <Info className="text-indigo-600 mt-0.5" size={20} />
+                    <div>
+                      <h3 className="font-semibold text-gray-800">
+                        How to use:
+                      </h3>
+                      <p className="text-sm text-gray-600">
+                        Click on slots to select them, then use the buttons
+                        below to block or unblock
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-4 text-sm">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 bg-green-100 border-2 border-green-400 rounded"></div>
+                      <span className="text-gray-700">
+                        Available (clickable)
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 bg-blue-100 border-2 border-blue-400 rounded"></div>
+                      <span className="text-gray-700">Booked (locked)</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 bg-red-100 border-2 border-red-400 rounded"></div>
+                      <span className="text-gray-700">Blocked (clickable)</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 bg-indigo-600 border-2 border-indigo-700 rounded"></div>
+                      <span className="text-gray-700">Selected</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Slots Grid */}
+                <div className="bg-white rounded-2xl shadow-lg p-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold text-gray-800">
+                      Time Slots
+                    </h3>
+                    {selectedSlots.length > 0 && (
+                      <span className="text-sm bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full font-medium">
+                        {selectedSlots.length} selected
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                    {slots.map((slot) => {
+                      const isSelected = selectedSlots.includes(slot.id);
+                      return (
+                        <button
+                          key={slot.id}
+                          disabled={slot.isBooked}
+                          onClick={() => toggleSlot(slot.id)}
+                          className={`p-4 rounded-xl font-medium transition-all ${
+                            slot.isBooked
+                              ? "bg-blue-100 border-2 border-blue-300 text-blue-700 cursor-not-allowed opacity-60"
+                              : slot.isBlocked
+                              ? isSelected
+                                ? "bg-indigo-600 text-white border-2 border-indigo-700 shadow-lg scale-105"
+                                : "bg-red-100 border-2 border-red-300 text-red-700 hover:shadow-md hover:scale-105"
+                              : isSelected
+                              ? "bg-indigo-600 text-white border-2 border-indigo-700 shadow-lg scale-105"
+                              : "bg-green-100 border-2 border-green-300 text-green-700 hover:shadow-md hover:scale-105"
+                          }`}
+                        >
+                          <div className="text-sm font-bold">
+                            {slot.startTime}
+                          </div>
+                          <div className="text-xs opacity-75">
+                            {slot.endTime}
+                          </div>
+                          {slot.isBooked && (
+                            <div className="text-xs mt-1">Booked</div>
+                          )}
+                          {slot.isBlocked && !isSelected && (
+                            <div className="text-xs mt-1">Blocked</div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="bg-white rounded-2xl shadow-lg p-6">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                    Actions
+                  </h3>
+
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <button
+                        onClick={selectAllAvailable}
+                        className="px-6 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all font-medium"
+                      >
+                        Select All Available
+                      </button>
+                      <button
+                        onClick={() => setSelectedSlots([])}
+                        disabled={selectedSlots.length === 0}
+                        className="px-6 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Clear Selection
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <button
+                        onClick={blockSlots}
+                        disabled={selectedSlots.length === 0 || loading}
+                        className="px-6 py-4 bg-red-500 text-white rounded-xl hover:bg-red-600 transition-all font-semibold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+                      >
+                        <Lock size={20} />
+                        Block Selected Slots
+                      </button>
+                      <button
+                        onClick={unblockSlots}
+                        disabled={selectedSlots.length === 0 || loading}
+                        className="px-6 py-4 bg-green-500 text-white rounded-xl hover:bg-green-600 transition-all font-semibold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+                      >
+                        <Unlock size={20} />
+                        Unblock Selected Slots
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <button
+                        onClick={blockFullDay}
+                        disabled={loading}
+                        className="px-6 py-4 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-all font-semibold flex items-center justify-center gap-2 disabled:opacity-50 shadow-lg"
+                      >
+                        <Lock size={20} />
+                        Block Entire Day
+                      </button>
+                      <button
+                        onClick={unblockFullDay}
+                        disabled={loading}
+                        className="px-6 py-4 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all font-semibold flex items-center justify-center gap-2 disabled:opacity-50 shadow-lg"
+                      >
+                        <Unlock size={20} />
+                        Unblock Entire Day
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {selectedDate && slots.length === 0 && !loading && (
+              <div className="bg-white rounded-2xl shadow-lg p-12 text-center">
+                <Calendar className="mx-auto text-gray-300 mb-4" size={64} />
+                <h3 className="text-xl font-semibold text-gray-800 mb-2">
+                  No slots found
+                </h3>
+                <p className="text-gray-500 mb-6">
+                  There are no slots for this date yet.
+                </p>
                 <button
-                  onClick={() => setShowBulkForm(false)}
-                  className="text-gray-500 hover:text-gray-700"
+                  onClick={() => {
+                    setGenerateForm({ ...generateForm, date: selectedDate });
+                    setCurrentView("generate");
+                  }}
+                  className="px-6 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all font-semibold inline-flex items-center gap-2"
                 >
-                  <X className="w-6 h-6" />
+                  <Plus size={20} />
+                  Create Slots for This Date
                 </button>
               </div>
+            )}
 
-              <div className="space-y-4">
+            {!selectedDate && (
+              <div className="bg-white rounded-2xl shadow-lg p-12 text-center">
+                <Calendar className="mx-auto text-gray-300 mb-4" size={64} />
+                <h3 className="text-xl font-semibold text-gray-800 mb-2">
+                  Select a date to begin
+                </h3>
+                <p className="text-gray-500">
+                  Choose a date above to view and manage slots
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Generate View */}
+        {currentView === "generate" && (
+          <div className="bg-white rounded-2xl shadow-lg p-8">
+            <div className="max-w-2xl mx-auto">
+              <h2 className="text-2xl font-bold text-gray-800 mb-2">
+                Create New Slots
+              </h2>
+              <p className="text-gray-500 mb-6">
+                Generate appointment slots for a specific date
+              </p>
+
+              <div className="space-y-5">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Date
+                  </label>
+                  <input
+                    type="date"
+                    value={generateForm.date}
+                    onChange={(e) =>
+                      setGenerateForm({ ...generateForm, date: e.target.value })
+                    }
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:outline-none text-lg"
+                  />
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Start Date
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Start Time
                     </label>
                     <input
-                      type="date"
-                      value={bulkForm.startDate}
+                      type="time"
+                      value={generateForm.startTime}
                       onChange={(e) =>
-                        setBulkForm((prev) => ({
-                          ...prev,
-                          startDate: e.target.value,
-                        }))
+                        setGenerateForm({
+                          ...generateForm,
+                          startTime: e.target.value,
+                        })
                       }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:outline-none text-lg"
                     />
                   </div>
+
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      End Date
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      End Time
                     </label>
                     <input
-                      type="date"
-                      value={bulkForm.endDate}
+                      type="time"
+                      value={generateForm.endTime}
                       onChange={(e) =>
-                        setBulkForm((prev) => ({
-                          ...prev,
-                          endDate: e.target.value,
-                        }))
+                        setGenerateForm({
+                          ...generateForm,
+                          endTime: e.target.value,
+                        })
                       }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:outline-none text-lg"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Slot Type
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Slot Duration (minutes)
                   </label>
                   <select
-                    value={bulkForm.slotType}
+                    value={generateForm.duration}
                     onChange={(e) =>
-                      setBulkForm((prev) => ({
-                        ...prev,
-                        slotType: e.target.value,
-                      }))
+                      setGenerateForm({
+                        ...generateForm,
+                        duration: Number(e.target.value),
+                      })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:outline-none text-lg"
                   >
-                    <option value="full">Full Day</option>
-                    <option value="half">Half Day</option>
-                    <option value="custom">Custom</option>
+                    <option value={15}>15 minutes</option>
+                    <option value={30}>30 minutes</option>
+                    <option value={45}>45 minutes</option>
+                    <option value={60}>1 hour</option>
                   </select>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={bulkForm.skipWeekends}
-                    onChange={(e) =>
-                      setBulkForm((prev) => ({
-                        ...prev,
-                        skipWeekends: e.target.checked,
-                      }))
-                    }
-                    className="w-4 h-4"
-                  />
-                  <label className="text-sm text-gray-700">Skip Weekends</label>
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="block text-sm font-medium text-gray-700">
-                      Time Slots
-                    </label>
-                    <button
-                      onClick={addTimeSlot}
-                      className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
-                    >
-                      <Plus className="w-4 h-4" />
-                      Add Slot
-                    </button>
-                  </div>
-                  <div className="space-y-2">
-                    {bulkForm.timeSlots.map((slot, index) => (
-                      <div key={index} className="flex gap-2 items-center">
-                        <input
-                          type="time"
-                          value={slot.startTime}
-                          onChange={(e) =>
-                            updateTimeSlot(index, "startTime", e.target.value)
-                          }
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg"
-                        />
-                        <span>to</span>
-                        <input
-                          type="time"
-                          value={slot.endTime}
-                          onChange={(e) =>
-                            updateTimeSlot(index, "endTime", e.target.value)
-                          }
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg"
-                        />
-                        <input
-                          type="number"
-                          value={slot.duration}
-                          onChange={(e) =>
-                            updateTimeSlot(
-                              index,
-                              "duration",
-                              parseInt(e.target.value)
-                            )
-                          }
-                          placeholder="mins"
-                          className="w-20 px-3 py-2 border border-gray-300 rounded-lg"
-                        />
-                        {bulkForm.timeSlots.length > 1 && (
-                          <button
-                            onClick={() => removeTimeSlot(index)}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
-                    ))}
+                <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4">
+                  <div className="flex gap-2">
+                    <Info
+                      className="text-indigo-600 flex-shrink-0 mt-0.5"
+                      size={20}
+                    />
+                    <div className="text-sm text-indigo-800">
+                      <strong>Preview:</strong> This will create slots from{" "}
+                      {generateForm.startTime} to {generateForm.endTime}, with
+                      each slot lasting {generateForm.duration} minutes.
+                    </div>
                   </div>
                 </div>
 
-                <div className="flex gap-3 pt-4">
-                  <button
-                    onClick={handleBulkCreate}
-                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                  >
-                    Create Slots
-                  </button>
-                  <button
-                    onClick={() => setShowBulkForm(false)}
-                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
-                  >
-                    Cancel
-                  </button>
-                </div>
+                <button
+                  onClick={handleGenerateSlots}
+                  disabled={!generateForm.date || loading}
+                  className="w-full px-6 py-4 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all font-semibold text-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+                >
+                  {loading ? (
+                    <>
+                      <RefreshCw size={20} className="animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Plus size={20} />
+                      Generate Slots
+                    </>
+                  )}
+                </button>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };
 
-export default AdminSchedulePage;
+export default AdminSlotManager;

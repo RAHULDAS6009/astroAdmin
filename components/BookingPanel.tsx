@@ -39,45 +39,8 @@ interface UploadedFile {
 }
 
 const ConsultationAdmin: React.FC = () => {
-  const [bookings, setBookings] = useState<Booking[]>([
-    {
-      id: "1",
-      name: "Rajesh Kumar",
-      consultationType: "Astrology",
-      modeOfConsultation: "Video Call",
-      consultationDate: "2024-12-15",
-      consultationTime: "10:00 AM",
-      dob: "1990-05-15",
-      tob: "08:30 AM",
-      pob: "Mumbai",
-      pinCode: "400001",
-      contactNo: "9876543210",
-      countryCode: "+91",
-      purpose: "Career guidance and financial planning",
-      pdfUrl: "https://example.com/document1.pdf",
-      uploadedFiles: [],
-      status: "pending",
-      createdAt: "2024-12-08",
-    },
-    {
-      id: "2",
-      name: "Priya Sharma",
-      consultationType: "Tarot Reading",
-      modeOfConsultation: "Phone Call",
-      consultationDate: "2024-12-16",
-      consultationTime: "02:00 PM",
-      dob: "1985-08-22",
-      tob: "06:15 PM",
-      pob: "Delhi",
-      pinCode: "110001",
-      contactNo: "9876543211",
-      countryCode: "+91",
-      purpose: "Relationship advice",
-      uploadedFiles: [],
-      status: "pending",
-      createdAt: "2024-12-07",
-    },
-  ]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const API_BASE = "http://api.astrokama.com/api/v1/admin";
 
   const [filter, setFilter] = useState<
     "all" | "pending" | "consulted" | "cancelled"
@@ -89,6 +52,76 @@ const ConsultationAdmin: React.FC = () => {
     null
   );
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
+
+  useEffect(() => {
+    fetchConsultations();
+  }, []);
+
+  const fetchConsultations = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/consultations`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("admin_token") ?? ""}`,
+        },
+      });
+
+      const json = await res.json();
+
+      const mapped: Booking[] = json.data.map((item: any) => ({
+        id: String(item.id),
+        name: item.fullName,
+        consultationType: item.consultationType,
+        modeOfConsultation: item.preferredMode,
+        consultationDate: item.consultationDate,
+        consultationTime: item.timeSlot
+          ? `${item.timeSlot.startTime} - ${item.timeSlot.endTime}`
+          : "N/A",
+        dob: item.dateOfBirth?.split("T")[0],
+        tob: item.timeOfBirth,
+        pob: item.placeOfBirth,
+        pinCode: item.pinCode,
+        contactNo: item.phoneNumber,
+        countryCode: "", // already included in phoneNumber
+        purpose: buildPurpose(item),
+        pdfUrl: item.signature ?? undefined,
+        uploadedFiles: [],
+        status: normalizeStatus(item.status),
+        createdAt: item.createdAt,
+      }));
+
+      setBookings(mapped);
+    } catch (err) {
+      console.error("Failed to load consultations", err);
+    }
+  };
+  const buildPurpose = (item: any) => {
+    const purposes = [];
+
+    if (item.careerGuidance) purposes.push("Career Guidance");
+    if (item.loveLife) purposes.push("Love Life");
+    if (item.marriageLife) purposes.push("Marriage Life");
+    if (item.healthWellbeing) purposes.push("Health");
+    if (item.financialCondition) purposes.push("Finance");
+    if (item.business) purposes.push("Business");
+    if (item.spiritualGrowth) purposes.push("Spiritual Growth");
+    if (item.others && item.others !== "NA") purposes.push(item.others);
+
+    return purposes.join(", ") || "General Consultation";
+  };
+  const normalizeStatus = (
+    status: string
+  ): "pending" | "consulted" | "cancelled" => {
+    switch (status.toLowerCase()) {
+      case "confirmed":
+        return "pending";
+      case "consulted":
+        return "consulted";
+      case "cancelled":
+        return "cancelled";
+      default:
+        return "pending";
+    }
+  };
 
   const filteredBookings = bookings.filter((booking) => {
     const matchesFilter = filter === "all" ? true : booking.status === filter;
@@ -104,15 +137,27 @@ const ConsultationAdmin: React.FC = () => {
     return matchesFilter && matchesSearch;
   });
 
-  const handleStatusChange = (
+  const handleStatusChange = async (
     id: string,
     newStatus: "consulted" | "cancelled" | "pending"
   ) => {
-    setBookings(
-      bookings.map((booking) =>
-        booking.id === id ? { ...booking, status: newStatus } : booking
-      )
-    );
+    await fetch(`${API_BASE}/consultations/${id}/status`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("admin_token") ?? ""}`,
+      },
+      body: JSON.stringify({
+        status:
+          newStatus === "consulted"
+            ? "Consulted"
+            : newStatus === "cancelled"
+            ? "Cancelled"
+            : "Confirmed",
+      }),
+    });
+
+    fetchConsultations();
     setSelectedBooking(null);
   };
 

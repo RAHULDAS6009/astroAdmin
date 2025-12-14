@@ -14,12 +14,12 @@ import axios from "axios";
 
 /**
  * Full CRUD integrated Courses admin panel.
- * Endpoint base: http://localhost:5000/api/v1/admin
+ * Endpoint base: http://api.astrokama.com/api/v1/admin
  *
  * Upload expectations:
- * - POST http://localhost:5000/api/v1/admin/upload
+ * - POST http://api.astrokama.com/api/v1/admin/upload
  * - form-data field: "file"
- * - response: { success: true, url: "http://localhost:5000/uploads/123.pdf" }
+ * - response: { success: true, url: "http://api.astrokama.com/uploads/123.pdf" }
  */
 
 /* ----------------------- Types ----------------------- */
@@ -234,7 +234,7 @@ const mapCourseToApiPayload = (course: Course) => {
 
 /* ------------------- Axios instance helper ------------------- */
 const api = axios.create({
-  baseURL: "http://localhost:5000/api/v1/admin",
+  baseURL: "http://api.astrokama.com/api/v1/admin",
   headers: { "Content-Type": "application/json" },
 });
 api.interceptors.request.use((config) => {
@@ -247,11 +247,11 @@ api.interceptors.request.use((config) => {
 });
 
 /* ------------------- Upload helper ------------------- */
-const UPLOAD_URL = "http://localhost:5000/upload-file"; // change if your route differs
+const UPLOAD_URL = "http://api.astrokama.com/upload-file"; // change if your route differs
 
 /**
  * Uploads a file and returns the full URL returned by the API (or null).
- * Expects response: { success: true, url: "http://localhost:5000/uploads/123.pdf" }
+ * Expects response: { success: true, url: "http://api.astrokama.com/uploads/123.pdf" }
  */
 const uploadFile = async (file: File): Promise<string | null> => {
   try {
@@ -570,7 +570,7 @@ const CoursesAdminPanel: React.FC = () => {
     if (!maybeUrl) return null;
     if (maybeUrl.startsWith("http")) return maybeUrl;
     // fallback: build using server base
-    return `http://localhost:5000/uploads/${maybeUrl}`;
+    return `http://api.astrokama.com/uploads/${maybeUrl}`;
   };
 
   // handle file input upload for image/pdf

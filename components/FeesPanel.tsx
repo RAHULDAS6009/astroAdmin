@@ -9,7 +9,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 
-const API_BASE_URL = "http://localhost:5000/api/v1";
+const API_BASE_URL = "http://api.astrokama.com/api/v1";
 
 interface FeeRecord {
   id?: number;

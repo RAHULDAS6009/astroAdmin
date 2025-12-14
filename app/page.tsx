@@ -29,7 +29,7 @@ export default function AdminLogin() {
 
     try {
       const res = await axios.post(
-        "http://localhost:5000/api/v1/admin/login",
+        "http://api.astrokama.com/api/v1/admin/login",
         {
           email,
           password,
