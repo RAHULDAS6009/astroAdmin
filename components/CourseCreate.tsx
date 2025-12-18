@@ -46,6 +46,9 @@ const CourseCreateForm = () => {
   const [classTimeHrs, setClassTimeHrs] = useState("");
   const [classTimeFrom, setClassTimeFrom] = useState("");
   const [classTimeTo, setClassTimeTo] = useState("");
+  const [uploading, setUploading] = useState<"photo1" | "photo2" | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+
   const [semesters, setSemesters] = useState<Semester[]>([
     {
       id: "1",
@@ -79,10 +82,23 @@ const CourseCreateForm = () => {
     formData.append("file", file);
 
     try {
+      setUploading(type);
+      setUploadProgress(0);
+
       const res = await axios.post(
         "https://api.rahuldev.live/upload-file",
         formData,
-        { headers: { "Content-Type": "multipart/form-data" } }
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+          onUploadProgress: (progressEvent) => {
+            if (progressEvent.total) {
+              const percent = Math.round(
+                (progressEvent.loaded * 100) / progressEvent.total
+              );
+              setUploadProgress(percent);
+            }
+          },
+        }
       );
 
       if (type === "photo1") {
@@ -93,6 +109,9 @@ const CourseCreateForm = () => {
     } catch (err) {
       console.error("Upload failed", err);
       alert("❌ File upload failed");
+    } finally {
+      setUploading(null);
+      setUploadProgress(0);
     }
   };
 
@@ -272,7 +291,14 @@ const CourseCreateForm = () => {
           <div className="grid md:grid-cols-2 gap-6">
             {/* PHOTO 1 */}
             <label className="bg-gradient-to-br from-purple-100 to-purple-200 rounded-lg p-6 flex flex-col items-center justify-center cursor-pointer border-2 border-dashed border-purple-300">
-              {photo1Path ? (
+              {uploading === "photo1" ? (
+                <div className="flex flex-col items-center gap-2">
+                  <div className="w-10 h-10 border-4 border-purple-300 border-t-purple-700 rounded-full animate-spin" />
+                  <p className="text-purple-700 font-semibold text-sm">
+                    Uploading... {uploadProgress}%
+                  </p>
+                </div>
+              ) : photo1Path ? (
                 <div className="text-center">
                   <img
                     src={photo1Path}
@@ -295,13 +321,21 @@ const CourseCreateForm = () => {
                 type="file"
                 accept="image/*"
                 hidden
+                disabled={uploading === "photo1"}
                 onChange={(e) => handleFileUpload(e, "photo1")}
               />
             </label>
 
             {/* PHOTO 2 */}
             <label className="bg-gradient-to-br from-purple-100 to-purple-200 rounded-lg p-6 flex flex-col items-center justify-center cursor-pointer border-2 border-dashed border-purple-300">
-              {photo2Path ? (
+              {uploading === "photo2" ? (
+                <div className="flex flex-col items-center gap-2">
+                  <div className="w-10 h-10 border-4 border-purple-300 border-t-purple-700 rounded-full animate-spin" />
+                  <p className="text-purple-700 font-semibold text-sm">
+                    Uploading... {uploadProgress}%
+                  </p>
+                </div>
+              ) : photo2Path ? (
                 <div className="text-center">
                   <img
                     src={photo2Path}
@@ -324,6 +358,7 @@ const CourseCreateForm = () => {
                 type="file"
                 accept="image/*"
                 hidden
+                disabled={uploading === "photo2"}
                 onChange={(e) => handleFileUpload(e, "photo2")}
               />
             </label>
