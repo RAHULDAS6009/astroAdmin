@@ -21,8 +21,7 @@ interface Semester {
 const CourseCreateForm = () => {
   const [photo1, setPhoto1] = useState<File | null>(null);
   const [photo2, setPhoto2] = useState<File | null>(null);
-  const [photo1Preview, setPhoto1Preview] = useState<string | null>(null);
-  const [photo2Preview, setPhoto2Preview] = useState<string | null>(null);
+
   const [photo1Uploaded, setPhoto1Uploaded] = useState(false);
   const [photo2Uploaded, setPhoto2Uploaded] = useState(false);
   const [photo1Path, setPhoto1Path] = useState<string | null>(null);
@@ -256,17 +255,14 @@ const CourseCreateForm = () => {
       alert("❌ Failed to create batch. Please try again.");
     }
   };
-
   const handlePhoto1Change = (file: File) => {
     setPhoto1(file);
-    setPhoto1Preview(URL.createObjectURL(file));
     setPhoto1Uploaded(false);
     setPhoto1Path(null);
   };
 
   const handlePhoto2Change = (file: File) => {
     setPhoto2(file);
-    setPhoto2Preview(URL.createObjectURL(file));
     setPhoto2Uploaded(false);
     setPhoto2Path(null);
   };
@@ -318,18 +314,16 @@ const CourseCreateForm = () => {
             {/* PHOTO 1 */}
             <div className="space-y-3">
               <label className="bg-gradient-to-br from-purple-100 to-purple-200 rounded-lg p-6 flex flex-col items-center justify-center cursor-pointer border-2 border-dashed border-purple-300">
-                {photo1Preview ? (
+                {photo1Path ? (
                   <div className="text-center">
                     <img
-                      src={photo1Preview}
-                      alt="Preview"
+                      src={photo1Path}
+                      alt="Uploaded"
                       className="h-32 object-cover rounded mb-2"
                     />
-                    {photo1Uploaded && (
-                      <span className="text-green-600 font-semibold text-sm">
-                        ✓ Uploaded
-                      </span>
-                    )}
+                    <span className="text-green-600 font-semibold text-sm">
+                      ✓ Uploaded
+                    </span>
                   </div>
                 ) : (
                   <>
@@ -339,6 +333,7 @@ const CourseCreateForm = () => {
                     </p>
                   </>
                 )}
+
                 <input
                   type="file"
                   accept="image/*"
@@ -365,27 +360,6 @@ const CourseCreateForm = () => {
             {/* PHOTO 2 */}
             <div className="space-y-3">
               <label className="bg-gradient-to-br from-purple-100 to-purple-200 rounded-lg p-6 flex flex-col items-center justify-center cursor-pointer border-2 border-dashed border-purple-300">
-                {photo2Preview ? (
-                  <div className="text-center">
-                    <img
-                      src={photo2Preview}
-                      alt="Preview"
-                      className="h-32 object-cover rounded mb-2"
-                    />
-                    {photo2Uploaded && (
-                      <span className="text-green-600 font-semibold text-sm">
-                        ✓ Uploaded
-                      </span>
-                    )}
-                  </div>
-                ) : (
-                  <>
-                    <Upload className="w-10 h-10 text-purple-600 mb-2" />
-                    <p className="text-purple-700 font-semibold text-center">
-                      Upload Photo (Banner)
-                    </p>
-                  </>
-                )}
                 <input
                   type="file"
                   accept="image/*"
