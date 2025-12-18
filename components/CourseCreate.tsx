@@ -90,7 +90,7 @@ const CourseCreateForm = () => {
       const formData = new FormData();
       formData.append("file", file);
 
-      const response = await fetch("http://localhost:5000/upload-file", {
+      const response = await fetch("https://api.rahuldev.live/upload-file", {
         method: "POST",
         body: formData, // ❗ no headers here
       });
@@ -225,7 +225,7 @@ const CourseCreateForm = () => {
         text: branchText,
       };
 
-      const response = await fetch("http://localhost:5000/api/branch", {
+      const response = await fetch("https://api.rahuldev.live/api/branch", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -275,7 +275,7 @@ const CourseCreateForm = () => {
 
   const fetchLocations = async () => {
     try {
-      const response = await fetch("http://localhost:5000/api/locations");
+      const response = await fetch("https://api.rahuldev.live/api/locations");
       const data = await response.json();
       setLocations(data);
     } catch (err) {

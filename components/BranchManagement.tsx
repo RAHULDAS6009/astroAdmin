@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Plus, Trash2, Edit2, Save, X } from "lucide-react";
 import axios from "axios";
 
-const API = "http://localhost:5000/api";
+const API = "https://api.rahuldev.live/api";
 
 interface Location {
   id: string;
