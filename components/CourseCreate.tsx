@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Plus, Trash2, Upload } from "lucide-react";
+import axios from "axios";
 
 interface Location {
   id: string;
@@ -90,19 +91,20 @@ const CourseCreateForm = () => {
       const formData = new FormData();
       formData.append("file", file);
 
-      const response = await fetch("https://api.rahuldev.live/upload-file", {
-        method: "POST",
-        body: formData, // ❗ no headers here
-      });
+      const response = await axios.post(
+        "https://api.rahuldev.live/upload-file",
+        formData,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+        }
+      );
 
-      if (!response.ok) {
+      if (!response) {
         throw new Error("Upload failed");
       }
 
-      const data = await response.json();
-
       // ✅ SAVE URL
-      setPath(data.url);
+      setPath(response.data.url);
       setUploaded(true);
 
       alert(
