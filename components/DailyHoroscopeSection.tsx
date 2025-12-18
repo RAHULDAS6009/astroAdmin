@@ -73,12 +73,46 @@ export default function DailyHoroscopeManager() {
   };
 
   const saveAllToDatabase = async () => {
-    // Here you would make an API call to save all horoscopes
-    // Example: await fetch('/api/horoscopes', { method: 'POST', body: JSON.stringify(horoscopes) })
+    if (Object.keys(horoscopes).length !== zodiacSigns.length) {
+      alert("Please complete all zodiac signs before saving.");
+      return;
+    }
 
-    // TODODODODODODO :  save in the db  and delete it from the local storage
-    console.log("Saving all horoscopes:", horoscopes);
-    alert("All horoscopes saved to database!");
+    const payload = {
+      date: selectedDate,
+      horoscopes: Object.fromEntries(
+        Object.entries(horoscopes).map(([sign, data]) => [
+          sign.toLowerCase(),
+          data.content,
+        ])
+      ),
+    };
+
+    try {
+      const token = localStorage.getItem("admin_token"); // or wherever you store it
+
+      const res = await fetch(
+        "https://api.rahuldev.live/api/v1/admin/cms/planet_horoscope",
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            content: JSON.stringify(payload),
+          }),
+        }
+      );
+
+      if (!res.ok) throw new Error("Failed");
+
+      localStorage.removeItem(`horoscope_${selectedDate}`);
+      alert("✅ Daily horoscope saved to CMS!");
+    } catch (err) {
+      console.error(err);
+      alert("❌ Failed to save horoscope");
+    }
   };
 
   const getCompletionStatus = () => {

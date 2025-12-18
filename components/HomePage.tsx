@@ -10,8 +10,10 @@ const HomePage = () => {
       {[
         "About me Para 1 ",
         "About me Para 2",
-        "My Philosophy Para",
-        "My Blessing Para",
+        "My Philosophy Para 1",
+        "My Philosophy Para 2",
+        "My Blessing Para 1",
+        "My Blessing Para 2",
         "Modern Astrology Para About me 1",
         "Modern Astrology Para About me  2",
       ].map((title, key) => {
@@ -33,60 +35,33 @@ type UploadedImage = {
 
 function LatestUpdatesSection() {
   const [images, setImages] = useState<UploadedImage[]>([]);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
 
-  // Handle image selection from your ImageUpload component
-  const handleFileSelect = (file: File | null) => {
-    setSelectedFile(file);
-  };
-
-  // Mock upload logic — replace with actual API upload
-  const uploadImage = async () => {
-    if (!selectedFile) return;
-
-    setUploading(true);
-
-    await new Promise((r) => setTimeout(r, 800));
-
-    const fakeUrl = URL.createObjectURL(selectedFile);
+  // ✅ Called after successful upload
+  const handleImageUploaded = (imageUrl: string | null) => {
+    if (!imageUrl) return;
 
     setImages((prev) => [
       ...prev,
       {
-        id: Math.random().toString(36).slice(2),
-        url: fakeUrl,
+        id: crypto.randomUUID(),
+        url: imageUrl,
       },
     ]);
-
-    setSelectedFile(null);
-    setUploading(false);
   };
 
-  // Delete image
+  // Delete image from UI (optional: also delete from backend)
   const deleteImage = (id: string) => {
     setImages((prev) => prev.filter((img) => img.id !== id));
   };
 
   return (
     <div className="w-full border-y flex justify-center p-6">
-      <div className=" p-6 bg-white shadow rounded-lg">
+      <div className="p-6 bg-white shadow rounded-lg w-full max-w-5xl">
         <h2 className="text-xl font-semibold mb-4">Latest Updates (Images)</h2>
 
         {/* Upload Section */}
         <div className="mb-6">
-          <ImageUpload
-            onFileChange={handleFileSelect}
-            showUploadButton={false}
-          />
-
-          <button
-            onClick={uploadImage}
-            disabled={!selectedFile || uploading}
-            className="mt-3 px-4 py-2 bg-indigo-600 text-white rounded disabled:opacity-50"
-          >
-            {uploading ? "Uploading..." : "Add to Latest Updates"}
-          </button>
+          <ImageUpload onFileChange={handleImageUploaded} />
         </div>
 
         {/* Images Grid */}
@@ -122,5 +97,4 @@ function LatestUpdatesSection() {
     </div>
   );
 }
-
 export default HomePage;

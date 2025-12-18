@@ -6,27 +6,58 @@ import ImageUpload from "./ImageUpload";
 
 export default function SaveContent({ title }: { title: string }) {
   const [html, setHtml] = useState("");
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const section = title.trim().toLowerCase().replace(/\s+/g, "_");
 
   const saveContent = async () => {
-    localStorage.setItem("content", JSON.stringify({ html }));
+    try {
+      setLoading(true);
+      const token = localStorage.getItem("admin_token"); // or wherever you store it
 
-    alert("Content saved!");
+      const res = await fetch(
+        `https://api.rahuldev.live/api/v1/admin/cms/${section}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            content: html,
+            imageUrl,
+          }),
+        }
+      );
+
+      if (!res.ok) throw new Error("Save failed");
+      alert("Content saved to database!");
+    } catch (err) {
+      alert("Error saving content");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="p-2 border">
       <h1 className="text-3xl font-bold mb-4">{title}</h1>
+
       <div className="flex gap-5">
         <Editor onChange={(content: string) => setHtml(content)} />
+
         {title !== "My Philosophy Para" && title !== "My Blessing Para" && (
-          <ImageUpload />
+          <ImageUpload onFileChange={setImageUrl} />
         )}
       </div>
+
       <button
         onClick={saveContent}
-        className="mt-4 px-4 py-2 bg-purple-600 text-white rounded-lg"
+        disabled={loading}
+        className="mt-4 px-4 py-2 bg-purple-600 text-white rounded-lg disabled:opacity-50"
       >
-        Save To Database
+        {loading ? "Saving..." : "Save To Database"}
       </button>
     </div>
   );

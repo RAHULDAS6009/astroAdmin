@@ -1,15 +1,17 @@
 import React, { useRef, useState, useCallback } from "react";
 
+/* ---------- Spinner ---------- */
+function Spinner() {
+  return (
+    <div className="h-5 w-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+  );
+}
+
 type Props = {
-  /** Called when a valid file is selected. Receives the File object. */
-  onFileChange?: (file: File | null) => void;
-  /** Accept attribute for input (default: images) */
+  onFileChange?: (imageUrl: string | null) => void;
   accept?: string;
-  /** Maximum file size in bytes (default: 5 MB) */
   maxSizeBytes?: number;
-  /** Optional initial image URL to show as preview */
   initialImageUrl?: string | null;
-  /** Whether to show an upload button (if false, component acts as selector only) */
   showUploadButton?: boolean;
 };
 
@@ -43,23 +45,35 @@ export default function ImageUpload({
       reader.readAsDataURL(f);
     });
 
+  const uploadToServer = async (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const res = await fetch("https://api.rahuldev.live/upload-file", {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!res.ok) {
+      throw new Error("Upload failed");
+    }
+
+    return res.json(); // { url }
+  };
+
   const handleFiles = async (files: FileList | null) => {
     setError(null);
     if (!files || files.length === 0) return;
     const f = files[0];
 
-    // Validate type
     if (!f.type.startsWith("image/")) {
       setError("Please select an image file.");
       return;
     }
 
-    // Validate size
     if (f.size > maxSizeBytes) {
       setError(
-        `File is too large. Maximum allowed size is ${Math.round(
-          maxSizeBytes / 1024 / 1024
-        )} MB.`
+        `File too large. Max ${Math.round(maxSizeBytes / 1024 / 1024)} MB`
       );
       return;
     }
@@ -68,44 +82,18 @@ export default function ImageUpload({
       const dataUrl = await readFileAsDataUrl(f);
       setFile(f);
       setPreview(dataUrl);
-      onFileChange?.(f);
-    } catch (err) {
-      setError("Failed to read the file.");
-    }
-  };
+      setUploading(true);
 
-  const onInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    handleFiles(e.target.files);
-  };
-
-  const onDrop: React.DragEventHandler<HTMLDivElement> = (e) => {
-    e.preventDefault();
-    setDragOver(false);
-    handleFiles(e.dataTransfer.files);
-  };
-
-  const onDragOver: React.DragEventHandler<HTMLDivElement> = (e) => {
-    e.preventDefault();
-    setDragOver(true);
-  };
-
-  const onDragLeave: React.DragEventHandler<HTMLDivElement> = () => {
-    setDragOver(false);
-  };
-
-  const simulateUpload = async () => {
-    if (!file) return;
-    setUploading(true);
-    setError(null);
-    try {
-      // Simulate network activity. Replace this with real upload logic.
-      await new Promise((r) => setTimeout(r, 1200));
-      // On success you might return a server URL — here we keep the preview.
-      // Example: onFileChange?.(file) could be used to kick off the upload outside.
-    } catch (e) {
-      setError("Upload failed. Try again.");
-    } finally {
-      setUploading(false);
+      try {
+        const result = await uploadToServer(f);
+        onFileChange?.(result.url);
+      } catch {
+        setError("Image upload failed");
+      } finally {
+        setTimeout(() => setUploading(false), 300);
+      }
+    } catch {
+      setError("Failed to read file");
     }
   };
 
@@ -113,62 +101,77 @@ export default function ImageUpload({
     <div className="w-full max-w-md">
       <label className="block text-sm font-medium mb-2">Upload image</label>
 
+      {/* Dropzone */}
       <div
-        className={`relative border-2 rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer transition-all focus:outline-none focus:ring-2 focus:ring-offset-2" ${
+        className={`relative border-2 rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer transition ${
           dragOver
             ? "border-dashed border-indigo-400 bg-indigo-50"
             : "border-gray-200 bg-white"
-        }`}
-        onDrop={onDrop}
-        onDragOver={onDragOver}
-        onDragLeave={onDragLeave}
+        } ${uploading ? "pointer-events-none opacity-70" : ""}`}
         onClick={() => inputRef.current?.click()}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") inputRef.current?.click();
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragOver(true);
         }}
-        aria-label="Image upload dropzone"
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragOver(false);
+          handleFiles(e.dataTransfer.files);
+        }}
       >
         <input
           ref={inputRef}
           type="file"
           accept={accept}
           className="hidden"
-          onChange={onInputChange}
+          onChange={(e) => handleFiles(e.target.files)}
         />
 
         {preview ? (
-          <div className="w-full flex flex-col items-center gap-3">
-            <img
-              src={preview}
-              alt="preview"
-              className="w-full h-48 object-cover rounded-md shadow-sm"
-            />
+          <div className="w-full flex flex-col gap-3">
+            <div className="relative h-48 rounded-md overflow-hidden">
+              <img
+                src={preview}
+                alt="preview"
+                className={`w-full h-full object-cover ${
+                  uploading ? "blur-sm" : ""
+                }`}
+              />
 
-            <div className="w-full flex justify-between items-center">
-              <div className="text-sm text-gray-600 truncate">
-                {file ? file.name : "Selected image"}
-              </div>
+              {uploading && (
+                <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                  <div className="flex items-center gap-2 text-white text-sm">
+                    <Spinner />
+                    Uploading...
+                  </div>
+                </div>
+              )}
+            </div>
 
-              <div className="flex items-center gap-2">
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-gray-600 truncate">
+                {file?.name}
+              </span>
+
+              <div className="flex gap-2">
                 <button
-                  type="button"
+                  disabled={uploading}
                   onClick={(e) => {
                     e.stopPropagation();
                     reset();
                   }}
-                  className="px-3 py-1 text-sm rounded border hover:bg-gray-100"
+                  className="px-3 py-1 text-sm border rounded disabled:opacity-50"
                 >
                   Remove
                 </button>
                 <button
-                  type="button"
+                  disabled={uploading}
                   onClick={(e) => {
                     e.stopPropagation();
                     inputRef.current?.click();
                   }}
-                  className="px-3 py-1 text-sm rounded border hover:bg-gray-100"
+                  className="px-3 py-1 text-sm border rounded disabled:opacity-50"
                 >
                   Replace
                 </button>
@@ -176,76 +179,16 @@ export default function ImageUpload({
             </div>
           </div>
         ) : (
-          <div className="flex flex-col items-center gap-2 py-8">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="lucide lucide-upload-icon lucide-upload"
-            >
-              <path d="M12 3v12" />
-              <path d="m17 8-5-5-5 5" />
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-            </svg>
-            <div className="text-sm text-gray-600 text-center px-4">
-              Drag & drop an image here, or click to select one.
-            </div>
-            <div className="text-xs text-gray-400">
-              Max size: {Math.round(maxSizeBytes / 1024 / 1024)} MB
-            </div>
+          <div className="flex flex-col items-center gap-2 py-8 text-gray-500">
+            <span>Drag & drop image or click</span>
+            <span className="text-xs">
+              Max {Math.round(maxSizeBytes / 1024 / 1024)} MB
+            </span>
           </div>
         )}
       </div>
 
-      {/* Errors */}
       {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
-
-      {/* Actions */}
-      <div className="mt-3 flex items-center gap-2">
-        {showUploadButton && (
-          <button
-            type="button"
-            onClick={simulateUpload}
-            disabled={!file || uploading}
-            className="px-4 py-2 rounded bg-indigo-600 text-white text-sm disabled:opacity-50"
-          >
-            {uploading ? "Uploading..." : "Upload"}
-          </button>
-        )}
-
-        <button
-          type="button"
-          onClick={reset}
-          className="px-4 py-2 rounded border text-sm hover:bg-gray-50"
-        >
-          Clear
-        </button>
-
-        <div className="ml-auto text-xs text-gray-500">
-          Tip: click the box to choose an image or drag & drop one.
-        </div>
-      </div>
     </div>
   );
 }
-
-/*
-Usage example:
-
-import ImageUpload from "./ImageUpload";
-
-function Page() {
-  const handleFile = (file: File | null) => {
-    console.log("selected file", file);
-    // send to server or save in state
-  };
-
-  return <ImageUpload onFileChange={handleFile} showUploadButton />;
-}
-*/

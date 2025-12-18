@@ -1,147 +1,182 @@
 "use client";
-import { useState } from "react";
 
-interface Service {
+import { useEffect, useState } from "react";
+
+interface ServiceItem {
   title: string;
   description: string;
-  iconImage: string | null;
-}
-
-interface FormState {
-  title: string;
-  description: string;
-  iconImage: string | null;
+  imageUrl: string | null;
 }
 
 export default function ServicesManager() {
-  const [services, setServices] = useState<Service[]>([]);
-
-  const [form, setForm] = useState<FormState>({
-    title: "",
-    description: "",
-    iconImage: null,
-  });
-
+  const [services, setServices] = useState<ServiceItem[]>([]);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setForm({ ...form, iconImage: reader.result as string });
-      };
-      reader.readAsDataURL(file);
+  /* ----------------------------------
+     LOAD SERVICES
+  ---------------------------------- */
+  useEffect(() => {
+    loadServices();
+  }, []);
+
+  const loadServices = async () => {
+    try {
+      const res = await fetch("https://api.rahuldev.live/api/v1/cms");
+      const { data } = await res.json();
+
+      const cms = data.find((item: any) => item.section === "services_offered");
+
+      if (cms?.content) {
+        const parsed = JSON.parse(cms.content);
+        setServices(parsed.services || []);
+      }
+    } catch (err) {
+      console.error("Failed to load services", err);
     }
   };
 
-  const handleSubmit = () => {
-    if (!form.title || !form.description) {
-      alert("Please fill in title and description");
-      return;
-    }
+  /* ----------------------------------
+     IMAGE UPLOAD
+  ---------------------------------- */
+  const uploadImage = async (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
 
-    if (editingIndex !== null) {
-      const updatedList = [...services];
-      updatedList[editingIndex] = form as Service;
-      setServices(updatedList);
-      setEditingIndex(null);
-    } else {
-      setServices([...services, form as Service]);
-    }
+    const res = await fetch("https://api.rahuldev.live/upload-file", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("admin_token")}`,
+      },
+      body: formData,
+    });
 
-    setForm({ title: "", description: "", iconImage: null });
+    const data = await res.json();
+    return data.url;
   };
 
-  const handleEdit = (index: number) => {
-    setEditingIndex(index);
-    setForm(services[index]);
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (editingIndex === null || !e.target.files?.[0]) return;
+
+    const imageUrl = await uploadImage(e.target.files[0]);
+
+    const updated = [...services];
+    updated[editingIndex].imageUrl = imageUrl;
+    setServices(updated);
   };
 
-  const handleDelete = (index: number) => {
-    if (!window.confirm("Delete this service?")) return;
+  /* ----------------------------------
+     CRUD (LOCAL)
+  ---------------------------------- */
+  const addService = () => {
+    setServices([...services, { title: "", description: "", imageUrl: null }]);
+    setEditingIndex(services.length);
+  };
+
+  const updateField = (
+    index: number,
+    field: keyof ServiceItem,
+    value: string
+  ) => {
+    const updated = [...services];
+    updated[index] = { ...updated[index], [field]: value };
+    setServices(updated);
+  };
+
+  const deleteService = (index: number) => {
+    if (!confirm("Delete service?")) return;
     setServices(services.filter((_, i) => i !== index));
   };
 
+  /* ----------------------------------
+     SAVE ALL (ONE CLICK)
+  ---------------------------------- */
+  const saveAll = async () => {
+    setLoading(true);
+    try {
+      await fetch(
+        "https://api.rahuldev.live/api/v1/admin/cms/services_offered",
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("admin_token")}`,
+          },
+          body: JSON.stringify({
+            content: JSON.stringify({ services }),
+            imageUrl: null,
+          }),
+        }
+      );
+
+      alert("Services saved successfully");
+      setEditingIndex(null);
+    } catch (err) {
+      console.error(err);
+      alert("Save failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /* ----------------------------------
+     UI
+  ---------------------------------- */
   return (
-    <div className="p-6 max-w-4xl mx-auto">
-      <h1 className="text-3xl font-bold mb-5">Manage Services</h1>
+    <div className="max-w-5xl mx-auto p-6">
+      <h1 className="text-3xl font-bold mb-6">Services Offered</h1>
 
-      <div className="bg-gray-100 p-5 rounded-lg space-y-4">
-        <input
-          className="w-full p-2 border rounded"
-          placeholder="Service Title"
-          value={form.title}
-          onChange={(e) => setForm({ ...form, title: e.target.value })}
-        />
+      <button
+        onClick={addService}
+        className="mb-4 px-4 py-2 bg-blue-600 text-white rounded"
+      >
+        + Add Service
+      </button>
 
-        <textarea
-          className="w-full p-2 border rounded"
-          rows={3}
-          placeholder="Service Description"
-          value={form.description}
-          onChange={(e) => setForm({ ...form, description: e.target.value })}
-        />
-
-        <div>
-          <label className="block text-sm font-medium mb-2">Upload Icon</label>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleImageUpload}
-            className="w-full p-2 border rounded bg-white"
-          />
-          {form.iconImage && (
-            <div className="mt-2">
-              <img
-                src={form.iconImage}
-                className="w-20 h-20 object-cover rounded"
-                alt="Preview"
-              />
-            </div>
-          )}
-        </div>
-
-        <button
-          onClick={handleSubmit}
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-        >
-          {editingIndex !== null ? "Update Service" : "Add Service"}
-        </button>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
+      <div className="space-y-4">
         {services.map((s, i) => (
-          <div key={i} className="p-4 shadow border rounded bg-white">
-            {s.iconImage && (
+          <div key={i} className="border rounded-lg p-4 bg-white shadow">
+            <input
+              className="w-full border p-2 rounded mb-2"
+              placeholder="Title"
+              value={s.title}
+              onChange={(e) => updateField(i, "title", e.target.value)}
+            />
+
+            <textarea
+              className="w-full border p-2 rounded mb-2"
+              rows={3}
+              placeholder="Description"
+              value={s.description}
+              onChange={(e) => updateField(i, "description", e.target.value)}
+            />
+
+            <input type="file" onChange={handleImageUpload} />
+
+            {s.imageUrl && (
               <img
-                src={s.iconImage}
-                className="w-14 h-14 mb-2 object-cover rounded"
-                alt="icon"
+                src={s.imageUrl}
+                className="w-16 h-16 mt-2 rounded object-cover"
               />
             )}
 
-            <h2 className="text-xl font-bold">{s.title}</h2>
-            <p className="text-gray-700 mt-1">{s.description}</p>
-
-            <div className="flex gap-3 mt-3">
-              <button
-                className="px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600"
-                onClick={() => handleEdit(i)}
-              >
-                Edit
-              </button>
-
-              <button
-                className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700"
-                onClick={() => handleDelete(i)}
-              >
-                Delete
-              </button>
-            </div>
+            <button
+              onClick={() => deleteService(i)}
+              className="mt-3 text-red-600 text-sm"
+            >
+              Delete
+            </button>
           </div>
         ))}
       </div>
+
+      <button
+        onClick={saveAll}
+        disabled={loading}
+        className="mt-6 px-6 py-3 bg-green-600 text-white rounded hover:bg-green-700"
+      >
+        {loading ? "Saving..." : "Save All Services"}
+      </button>
     </div>
   );
 }
