@@ -1,8 +1,12 @@
 "use client";
 import AdminSchedulePage from "@/components/AdminSchedulePage";
 import AdmissionTakenPage from "@/components/AdmissionPage";
+import RollNumberCreationPage from "@/components/AssignRollNo";
+import BatchPanel from "@/components/BatchPanel";
 import BookingPanel from "@/components/BookingPanel";
+import BranchManagementPage from "@/components/BranchManagement";
 import CmsEditor from "@/components/CmsEditor";
+import CourseCreateForm from "@/components/CourseCreate";
 import CoursesPanel from "@/components/CoursePanel";
 import CreateCourse from "@/components/CreateCourse";
 import FeesPanel from "@/components/FeesPanel";
@@ -23,6 +27,10 @@ const SECTIONS = [
   "CreateCourse",
   "Study Materials",
   "Fees Management",
+  "BranchManagementPage",
+  "CourseCreateForm",
+  "BatchPanel",
+  "RollNumberCreationPage",
   "Consultation Bookings",
   "Reviews",
 ];
@@ -63,6 +71,11 @@ export default function AdminDashboard() {
           {section === "Study Materials" && <MaterialsPanel />}
           {section === "Fees Management" && <FeesPanel />}
           {section === "AdminSchedulePage" && <AdminSchedulePage />}
+
+          {section === "BranchManagementPage" && <BranchManagementPage />}
+          {section === "CourseCreateForm" && <CourseCreateForm />}
+          {section === "BatchPanel" && <BatchPanel />}
+          {section === "RollNumberCreationPage" && <RollNumberCreationPage />}
 
           {section === "Consultation Bookings" && <BookingPanel />}
           {section === "Reviews" && <ReviewsPanel />}
