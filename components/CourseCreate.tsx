@@ -19,15 +19,8 @@ interface Semester {
 }
 
 const CourseCreateForm = () => {
-  const [photo1, setPhoto1] = useState<File | null>(null);
-  const [photo2, setPhoto2] = useState<File | null>(null);
-
-  const [photo1Uploaded, setPhoto1Uploaded] = useState(false);
-  const [photo2Uploaded, setPhoto2Uploaded] = useState(false);
   const [photo1Path, setPhoto1Path] = useState<string | null>(null);
   const [photo2Path, setPhoto2Path] = useState<string | null>(null);
-  const [uploadingPhoto1, setUploadingPhoto1] = useState(false);
-  const [uploadingPhoto2, setUploadingPhoto2] = useState(false);
 
   const [branchText, setBranchText] = useState("");
   const [tabHeader1, setTabHeader1] = useState("");
@@ -75,54 +68,32 @@ const CourseCreateForm = () => {
   >([""]);
 
   // Handle file upload
-  const handleFileUpload = async (file: File, type: "photo1" | "photo2") => {
+  const handleFileUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    type: "photo1" | "photo2"
+  ) => {
+    const file = e.target.files?.[0];
     if (!file) return;
 
-    const setUploading =
-      type === "photo1" ? setUploadingPhoto1 : setUploadingPhoto2;
-    const setUploaded =
-      type === "photo1" ? setPhoto1Uploaded : setPhoto2Uploaded;
-    const setPath = type === "photo1" ? setPhoto1Path : setPhoto2Path;
-
-    setUploading(true);
+    const formData = new FormData();
+    formData.append("file", file);
 
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const response = await axios.post(
+      const res = await axios.post(
         "https://api.rahuldev.live/upload-file",
         formData,
-        {
-          headers: { "Content-Type": "multipart/form-data" },
-        }
+        { headers: { "Content-Type": "multipart/form-data" } }
       );
 
-      if (!response) {
-        throw new Error("Upload failed");
+      if (type === "photo1") {
+        setPhoto1Path(res.data.url);
+      } else {
+        setPhoto2Path(res.data.url);
       }
-
-      // ✅ SAVE URL
-      setPath(response.data.url);
-      setUploaded(true);
-
-      alert(
-        `✅ ${type === "photo1" ? "Photo 1" : "Photo 2"} uploaded successfully`
-      );
-    } catch (error) {
-      console.error("Upload error:", error);
-      alert(`❌ Failed to upload ${type === "photo1" ? "Photo 1" : "Photo 2"}`);
-    } finally {
-      setUploading(false);
+    } catch (err) {
+      console.error("Upload failed", err);
+      alert("❌ File upload failed");
     }
-  };
-
-  const uploadPhoto1 = () => {
-    if (photo1) handleFileUpload(photo1, "photo1");
-  };
-
-  const uploadPhoto2 = () => {
-    if (photo2) handleFileUpload(photo2, "photo2");
   };
 
   const handleNumberOfSemestersChange = (value: number) => {
@@ -180,9 +151,8 @@ const CourseCreateForm = () => {
   const handleSubmit = async () => {
     console.log("Photo1 URL:", photo1Path);
     console.log("Photo2 URL:", photo2Path);
-
-    if (!photo1Uploaded || !photo2Uploaded) {
-      alert("⚠️ Please upload both photos before saving the course!");
+    if (!photo1Path || !photo2Path) {
+      alert("⚠️ Please upload both photos");
       return;
     }
 
@@ -255,17 +225,6 @@ const CourseCreateForm = () => {
       alert("❌ Failed to create batch. Please try again.");
     }
   };
-  const handlePhoto1Change = (file: File) => {
-    setPhoto1(file);
-    setPhoto1Uploaded(false);
-    setPhoto1Path(null);
-  };
-
-  const handlePhoto2Change = (file: File) => {
-    setPhoto2(file);
-    setPhoto2Uploaded(false);
-    setPhoto2Path(null);
-  };
 
   useEffect(() => {
     fetchLocations();
@@ -312,76 +271,62 @@ const CourseCreateForm = () => {
           {/* Photo Upload Section */}
           <div className="grid md:grid-cols-2 gap-6">
             {/* PHOTO 1 */}
-            <div className="space-y-3">
-              <label className="bg-gradient-to-br from-purple-100 to-purple-200 rounded-lg p-6 flex flex-col items-center justify-center cursor-pointer border-2 border-dashed border-purple-300">
-                {photo1Path ? (
-                  <div className="text-center">
-                    <img
-                      src={photo1Path}
-                      alt="Uploaded"
-                      className="h-32 object-cover rounded mb-2"
-                    />
-                    <span className="text-green-600 font-semibold text-sm">
-                      ✓ Uploaded
-                    </span>
-                  </div>
-                ) : (
-                  <>
-                    <Upload className="w-10 h-10 text-purple-600 mb-2" />
-                    <p className="text-purple-700 font-semibold text-center">
-                      Upload Photo (Branch)
-                    </p>
-                  </>
-                )}
-
-                <input
-                  type="file"
-                  accept="image/*"
-                  hidden
-                  onChange={(e) => {
-                    if (e.target.files?.[0]) {
-                      handlePhoto1Change(e.target.files[0]);
-                    }
-                  }}
-                />
-              </label>
-
-              {photo1 && !photo1Uploaded && (
-                <button
-                  onClick={uploadPhoto1}
-                  disabled={uploadingPhoto1}
-                  className="w-full py-2 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition disabled:bg-purple-400 disabled:cursor-not-allowed"
-                >
-                  {uploadingPhoto1 ? "Uploading..." : "Upload Photo 1"}
-                </button>
+            <label className="bg-gradient-to-br from-purple-100 to-purple-200 rounded-lg p-6 flex flex-col items-center justify-center cursor-pointer border-2 border-dashed border-purple-300">
+              {photo1Path ? (
+                <div className="text-center">
+                  <img
+                    src={photo1Path}
+                    className="h-32 object-cover rounded mb-2"
+                  />
+                  <span className="text-green-600 font-semibold text-sm">
+                    ✓ Uploaded
+                  </span>
+                </div>
+              ) : (
+                <>
+                  <Upload className="w-10 h-10 text-purple-600 mb-2" />
+                  <p className="text-purple-700 font-semibold">
+                    Upload Photo (Branch)
+                  </p>
+                </>
               )}
-            </div>
+
+              <input
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={(e) => handleFileUpload(e, "photo1")}
+              />
+            </label>
 
             {/* PHOTO 2 */}
-            <div className="space-y-3">
-              <label className="bg-gradient-to-br from-purple-100 to-purple-200 rounded-lg p-6 flex flex-col items-center justify-center cursor-pointer border-2 border-dashed border-purple-300">
-                <input
-                  type="file"
-                  accept="image/*"
-                  hidden
-                  onChange={(e) => {
-                    if (e.target.files?.[0]) {
-                      handlePhoto2Change(e.target.files[0]);
-                    }
-                  }}
-                />
-              </label>
-
-              {photo2 && !photo2Uploaded && (
-                <button
-                  onClick={uploadPhoto2}
-                  disabled={uploadingPhoto2}
-                  className="w-full py-2 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition disabled:bg-purple-400 disabled:cursor-not-allowed"
-                >
-                  {uploadingPhoto2 ? "Uploading..." : "Upload Photo 2"}
-                </button>
+            <label className="bg-gradient-to-br from-purple-100 to-purple-200 rounded-lg p-6 flex flex-col items-center justify-center cursor-pointer border-2 border-dashed border-purple-300">
+              {photo2Path ? (
+                <div className="text-center">
+                  <img
+                    src={photo2Path}
+                    className="h-32 object-cover rounded mb-2"
+                  />
+                  <span className="text-green-600 font-semibold text-sm">
+                    ✓ Uploaded
+                  </span>
+                </div>
+              ) : (
+                <>
+                  <Upload className="w-10 h-10 text-purple-600 mb-2" />
+                  <p className="text-purple-700 font-semibold">
+                    Upload Photo (Course)
+                  </p>
+                </>
               )}
-            </div>
+
+              <input
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={(e) => handleFileUpload(e, "photo2")}
+              />
+            </label>
           </div>
 
           <div className="bg-gradient-to-br from-purple-100 to-purple-200 rounded-lg p-8">
