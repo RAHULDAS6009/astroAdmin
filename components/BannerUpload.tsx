@@ -4,8 +4,8 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import ImageUpload from "./ImageUpload";
 
-const CMS_GET_URL = "http://localhost:5000/api/v1/cms";
-const CMS_ADMIN_URL = "http://localhost:5000/api/v1/admin/cms";
+const CMS_GET_URL = "https://api.rahuldev.live/api/v1/cms";
+const CMS_ADMIN_URL = "https://api.rahuldev.live/api/v1/admin/cms";
 
 type CmsItem = {
   id: number;

@@ -32,7 +32,7 @@ interface GenerateForm {
 
 /* ================= CONFIG ================= */
 
-const API_BASE = "http://localhost:5000/api/v1/admin";
+const API_BASE = "https://api.rahuldev.live/api/v1/admin";
 
 /* ================= COMPONENT ================= */
 

@@ -11,10 +11,13 @@ const AdminLogin = () => {
     e.preventDefault();
 
     try {
-      const res = await axios.post("http://localhost:5000/api/v1/admin/login", {
-        email,
-        password,
-      });
+      const res = await axios.post(
+        "https://api.rahuldev.live/api/v1/admin/login",
+        {
+          email,
+          password,
+        }
+      );
 
       localStorage.setItem("admin_token", res.data.token);
       localStorage.setItem("admin", JSON.stringify(res.data.admin));

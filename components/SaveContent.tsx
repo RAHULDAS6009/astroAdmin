@@ -17,7 +17,7 @@ export default function SaveContent({ title }: { title: string }) {
       const token = localStorage.getItem("admin_token"); // or wherever you store it
 
       const res = await fetch(
-        `http://localhost:5000/api/v1/admin/cms/${section}`,
+        `https://api.rahuldev.live/api/v1/admin/cms/${section}`,
         {
           method: "PUT",
           headers: {

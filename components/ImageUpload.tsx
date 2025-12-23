@@ -45,7 +45,7 @@ export default function ImageUpload({
     const formData = new FormData();
     formData.append("file", file);
 
-    const res = await fetch("http://localhost:5000/upload-file", {
+    const res = await fetch("https://api.rahuldev.live/upload-file", {
       method: "POST",
       body: formData,
     });

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 
-const API_BASE = "http://localhost:5000/api";
+const API_BASE = "https://api.rahuldev.live/api";
 
 /* ---------------- TYPES ---------------- */
 

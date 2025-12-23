@@ -57,7 +57,7 @@ export default function CourseAdminPage() {
     formData.append("file", file);
 
     const res = await axios.post(
-      "http://localhost:5000/upload-file",
+      "https://api.rahuldev.live/upload-file",
       formData,
       { headers: { "Content-Type": "multipart/form-data" } }
     );
@@ -82,7 +82,7 @@ export default function CourseAdminPage() {
 
     console.log("FINAL PAYLOAD:", payload);
 
-    await axios.post("http://localhost:5000/api/v1/admin/course", payload, {
+    await axios.post("https://api.rahuldev.live/api/v1/admin/course", payload, {
       headers: {
         Authorization: `Bearer ${localStorage.getItem("admin_token")}`,
       },

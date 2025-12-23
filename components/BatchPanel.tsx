@@ -32,7 +32,7 @@ interface Branch {
 
 /* ================= CONFIG ================= */
 
-const API_URL = "http://localhost:5000/api/branches";
+const API_URL = "https://api.rahuldev.live/api/branches";
 
 /* ================= COMPONENT ================= */
 

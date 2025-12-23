@@ -48,7 +48,7 @@ export default function AdminAlumniPage() {
   const fetchAlumni = async () => {
     try {
       setListLoading(true);
-      const res = await axios.get("http://localhost:5000/api/v1/alumnis");
+      const res = await axios.get("https://api.rahuldev.live/api/v1/alumnis");
       setAlumniList(res.data || []);
     } catch (err) {
       console.error("Failed to fetch alumni");
@@ -76,7 +76,7 @@ export default function AdminAlumniPage() {
       uploadData.append("file", form.photo);
       uploadData.append("contentType", "alumni");
 
-      const uploadRes = await fetch("http://localhost:5000/upload-file", {
+      const uploadRes = await fetch("https://api.rahuldev.live/upload-file", {
         method: "POST",
         body: uploadData,
       });
@@ -89,7 +89,7 @@ export default function AdminAlumniPage() {
 
       // STEP 2: save alumni
       await axios.post(
-        "http://localhost:5000/api/v1/admin/alumni",
+        "https://api.rahuldev.live/api/v1/admin/alumni",
         {
           name: form.name,
           registrationNumber: form.registrationNumber,
