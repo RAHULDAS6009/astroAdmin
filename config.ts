@@ -1,1 +1,1 @@
-export const BACKEND_URL = "https://api.rahuldev.live";
+export const BACKEND_URL = "http://localhost:5000";

@@ -92,7 +92,7 @@ export default function DailyHoroscopeManager() {
       const token = localStorage.getItem("admin_token"); // or wherever you store it
 
       const res = await fetch(
-        "https://api.rahuldev.live/api/v1/admin/cms/planet_horoscope",
+        "http://localhost:5000/api/v1/admin/cms/planet_horoscope",
         {
           method: "PUT",
           headers: {

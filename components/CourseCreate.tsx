@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Plus, Trash2, Upload } from "lucide-react";
 import axios from "axios";
+import SaveContent from "./SaveContent";
+import Editor from "./Editor";
 
 interface Location {
   id: string;
@@ -28,6 +30,7 @@ const CourseCreateForm = () => {
 
   const [locations, setLocations] = useState<Location[]>([]);
   const [branch, setBranch] = useState("");
+  const [html, setHtml] = useState("");
 
   const [courseName, setCourseName] = useState("");
   const [batchCode, setBatchCode] = useState("");
@@ -48,6 +51,7 @@ const CourseCreateForm = () => {
   const [classTimeTo, setClassTimeTo] = useState("");
   const [uploading, setUploading] = useState<"photo1" | "photo2" | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [isOffline, setIsOffline] = useState<boolean>(true); // default Offline
 
   const [semesters, setSemesters] = useState<Semester[]>([
     {
@@ -86,7 +90,7 @@ const CourseCreateForm = () => {
       setUploadProgress(0);
 
       const res = await axios.post(
-        "https://api.rahuldev.live/upload-file",
+        "http://localhost:5000/upload-file",
         formData,
         {
           headers: { "Content-Type": "multipart/form-data" },
@@ -212,10 +216,11 @@ const CourseCreateForm = () => {
           monthlyFee: monthlyFeesPerSemester[0] || "",
         },
         semesters: formattedSemesters,
-        text: branchText,
+        isOffline: isOffline,
+        text: html,
       };
 
-      const response = await fetch("https://api.rahuldev.live/api/branch", {
+      const response = await fetch("http://localhost:5000/api/branch", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -233,7 +238,9 @@ const CourseCreateForm = () => {
         } else if (response.status === 400) {
           alert(`⚠️ ${message}`);
         } else {
-          alert("❌ Failed to create batch. Please try again.");
+          alert(
+            "❌ Failed to create batch. Please try again./Check Batch Code it has to be unique"
+          );
         }
         return;
       }
@@ -251,7 +258,7 @@ const CourseCreateForm = () => {
 
   const fetchLocations = async () => {
     try {
-      const response = await fetch("https://api.rahuldev.live/api/locations");
+      const response = await fetch("http://localhost:5000/api/locations");
       const data = await response.json();
       setLocations(data);
     } catch (err) {
@@ -365,12 +372,33 @@ const CourseCreateForm = () => {
           </div>
 
           <div className="bg-gradient-to-br from-purple-100 to-purple-200 rounded-lg p-8">
-            <textarea
-              value={branchText}
-              onChange={(e) => setBranchText(e.target.value)}
-              className="w-full h-32 px-4 py-3 border-2 border-purple-300 rounded-lg focus:outline-none focus:border-purple-500 resize-none"
-              placeholder="Text As per Branch"
-            />
+            <Editor onChange={(content: string) => setHtml(content)} />
+          </div>
+
+          <div className="my-6">
+            <label className="block text-blue-700 font-semibold mb-3">
+              Course Mode:
+            </label>
+
+            <div className="flex gap-4">
+              <button
+                type="button"
+                onClick={() => setIsOffline(true)}
+                className={`px-6 py-3 rounded-lg font-semibold transition
+        ${isOffline ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-700"}`}
+              >
+                Offline
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsOffline(false)}
+                className={`px-6 py-3 rounded-lg font-semibold transition
+        ${!isOffline ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-700"}`}
+              >
+                Online
+              </button>
+            </div>
           </div>
 
           <div className="space-y-4">

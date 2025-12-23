@@ -22,7 +22,7 @@ export default function ServicesManager() {
 
   const loadServices = async () => {
     try {
-      const res = await fetch("https://api.rahuldev.live/api/v1/cms");
+      const res = await fetch("http://localhost:5000/api/v1/cms");
       const { data } = await res.json();
 
       const cms = data.find((item: any) => item.section === "services_offered");
@@ -43,7 +43,7 @@ export default function ServicesManager() {
     const formData = new FormData();
     formData.append("file", file);
 
-    const res = await fetch("https://api.rahuldev.live/upload-file", {
+    const res = await fetch("http://localhost:5000/upload-file", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${localStorage.getItem("admin_token")}`,
@@ -94,20 +94,17 @@ export default function ServicesManager() {
   const saveAll = async () => {
     setLoading(true);
     try {
-      await fetch(
-        "https://api.rahuldev.live/api/v1/admin/cms/services_offered",
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("admin_token")}`,
-          },
-          body: JSON.stringify({
-            content: JSON.stringify({ services }),
-            imageUrl: null,
-          }),
-        }
-      );
+      await fetch("http://localhost:5000/api/v1/admin/cms/services_offered", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("admin_token")}`,
+        },
+        body: JSON.stringify({
+          content: JSON.stringify({ services }),
+          imageUrl: null,
+        }),
+      });
 
       alert("Services saved successfully");
       setEditingIndex(null);

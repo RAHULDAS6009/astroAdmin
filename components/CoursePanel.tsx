@@ -25,10 +25,10 @@ interface Course {
 
 /* ================= CONFIG ================= */
 
-const LIST_API = "https://api.rahuldev.live/api/v1/admin/allcourse";
-const UPDATE_API = "https://api.rahuldev.live/api/v1/admin/course";
-const DELETE_API = "https://api.rahuldev.live/api/v1/admin/course";
-const UPLOAD_API = "https://api.rahuldev.live/upload-file";
+const LIST_API = "http://localhost:5000/api/v1/admin/allcourse";
+const UPDATE_API = "http://localhost:5000/api/v1/admin/course";
+const DELETE_API = "http://localhost:5000/api/v1/admin/course";
+const UPLOAD_API = "http://localhost:5000/upload-file";
 
 /* ================= COMPONENT ================= */
 

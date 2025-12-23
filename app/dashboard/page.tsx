@@ -1,7 +1,9 @@
 "use client";
+import AdminAlumniPage from "@/components/AdminAlumniPage";
 import AdminSchedulePage from "@/components/AdminSchedulePage";
 import AdmissionTakenPage from "@/components/AdmissionPage";
 import RollNumberCreationPage from "@/components/AssignRollNo";
+import AdminBannerPage from "@/components/BannerUpload";
 import BatchPanel from "@/components/BatchPanel";
 import BookingPanel from "@/components/BookingPanel";
 import BranchManagementPage from "@/components/BranchManagement";
@@ -21,7 +23,9 @@ import { useState } from "react";
 const SECTIONS = [
   "Homepage",
   "Students",
+  "AdminBannerUpload",
   "Courses",
+  "AdminAlumniPage",
   "AdmissionPage",
   "AdminSchedulePage",
   "CreateCourse",
@@ -71,6 +75,9 @@ export default function AdminDashboard() {
           {section === "Study Materials" && <MaterialsPanel />}
           {section === "Fees Management" && <FeesPanel />}
           {section === "AdminSchedulePage" && <AdminSchedulePage />}
+          {section === "AdminBannerUpload" && <AdminBannerPage />}
+
+          {section === "AdminAlumniPage" && <AdminAlumniPage />}
 
           {section === "BranchManagementPage" && <BranchManagementPage />}
           {section === "CourseCreateForm" && <CourseCreateForm />}

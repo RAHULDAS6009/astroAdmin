@@ -10,17 +10,13 @@ function Spinner() {
 type Props = {
   onFileChange?: (imageUrl: string | null) => void;
   accept?: string;
-  maxSizeBytes?: number;
   initialImageUrl?: string | null;
-  showUploadButton?: boolean;
 };
 
 export default function ImageUpload({
   onFileChange,
   accept = "image/*",
-  maxSizeBytes = 5 * 1024 * 1024,
   initialImageUrl = null,
-  showUploadButton = false,
 }: Props) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -37,26 +33,24 @@ export default function ImageUpload({
     if (inputRef.current) inputRef.current.value = "";
   }, [initialImageUrl, onFileChange]);
 
-  const readFileAsDataUrl = (f: File) =>
+  const readFileAsDataUrl = (file: File) =>
     new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(String(reader.result));
       reader.onerror = reject;
-      reader.readAsDataURL(f);
+      reader.readAsDataURL(file);
     });
 
   const uploadToServer = async (file: File) => {
     const formData = new FormData();
     formData.append("file", file);
 
-    const res = await fetch("https://api.rahuldev.live/upload-file", {
+    const res = await fetch("http://localhost:5000/upload-file", {
       method: "POST",
       body: formData,
     });
 
-    if (!res.ok) {
-      throw new Error("Upload failed");
-    }
+    if (!res.ok) throw new Error("Upload failed");
 
     return res.json(); // { url }
   };
@@ -64,33 +58,27 @@ export default function ImageUpload({
   const handleFiles = async (files: FileList | null) => {
     setError(null);
     if (!files || files.length === 0) return;
-    const f = files[0];
 
-    if (!f.type.startsWith("image/")) {
-      setError("Please select an image file.");
-      return;
-    }
+    const file = files[0];
 
-    if (f.size > maxSizeBytes) {
-      setError(
-        `File too large. Max ${Math.round(maxSizeBytes / 1024 / 1024)} MB`
-      );
+    if (!file.type.startsWith("image/")) {
+      setError("Please select an image file");
       return;
     }
 
     try {
-      const dataUrl = await readFileAsDataUrl(f);
-      setFile(f);
-      setPreview(dataUrl);
+      const previewUrl = await readFileAsDataUrl(file);
+      setFile(file);
+      setPreview(previewUrl);
       setUploading(true);
 
       try {
-        const result = await uploadToServer(f);
+        const result = await uploadToServer(file);
         onFileChange?.(result.url);
       } catch {
         setError("Image upload failed");
       } finally {
-        setTimeout(() => setUploading(false), 300);
+        setUploading(false);
       }
     } catch {
       setError("Failed to read file");
@@ -101,7 +89,6 @@ export default function ImageUpload({
     <div className="w-full max-w-md">
       <label className="block text-sm font-medium mb-2">Upload image</label>
 
-      {/* Dropzone */}
       <div
         className={`relative border-2 rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer transition ${
           dragOver
@@ -165,6 +152,7 @@ export default function ImageUpload({
                 >
                   Remove
                 </button>
+
                 <button
                   disabled={uploading}
                   onClick={(e) => {
@@ -181,9 +169,7 @@ export default function ImageUpload({
         ) : (
           <div className="flex flex-col items-center gap-2 py-8 text-gray-500">
             <span>Drag & drop image or click</span>
-            <span className="text-xs">
-              Max {Math.round(maxSizeBytes / 1024 / 1024)} MB
-            </span>
+            <span className="text-xs">Any image size allowed</span>
           </div>
         )}
       </div>

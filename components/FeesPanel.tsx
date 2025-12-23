@@ -9,7 +9,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 
-const API_BASE_URL = "https://api.rahuldev.live/api/v1";
+const API_BASE_URL = "http://localhost:5000/api/v1";
 
 interface FeeRecord {
   id?: number;
@@ -156,17 +156,57 @@ const FeeManagementSystem: React.FC = () => {
   );
 
   // Calculate late fine (matching HTML logic)
-  const calculateLateFine = (dueDate: string, semester: Semester) => {
+  // const calculateLateFine = (dueDate: string, semester: Semester) => {
+  //   const today = new Date();
+  //   const due = new Date(dueDate);
+
+  //   if (today <= due) return 0;
+
+  //   const lateFeeDate = semester.lateFeeDate
+  //     ? new Date(semester.lateFeeDate)
+  //     : due;
+
+  //   return today > lateFeeDate ? semester.lateFeeFine || 0 : 0;
+  // };
+  const calculateLateFine = (
+    monthIndex: number, // 0–11
+    year: number,
+    semester: Semester
+  ) => {
+    if (!semester.lateFeeDate || !semester.lateFeeFine) return 0;
+
+    const lateFeeDay = new Date(semester.lateFeeDate).getDate();
     const today = new Date();
-    const due = new Date(dueDate);
 
-    if (today <= due) return 0;
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
+    const todayDate = today.getDate();
 
-    const lateFeeDate = semester.lateFeeDate
-      ? new Date(semester.lateFeeDate)
-      : due;
+    // Future month → no fine
+    if (
+      year > currentYear ||
+      (year === currentYear && monthIndex > currentMonth)
+    ) {
+      return 0;
+    }
 
-    return today > lateFeeDate ? semester.lateFeeFine || 0 : 0;
+    let lateDays = 0;
+
+    // Past month
+    if (
+      year < currentYear ||
+      (year === currentYear && monthIndex < currentMonth)
+    ) {
+      const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+      lateDays = Math.max(0, daysInMonth - lateFeeDay);
+    }
+
+    // Current month
+    if (year === currentYear && monthIndex === currentMonth) {
+      lateDays = Math.max(0, todayDate - lateFeeDay);
+    }
+
+    return lateDays * semester.lateFeeFine;
   };
 
   // Generate monthly payment structure (EXACTLY matching HTML logic)
@@ -174,6 +214,8 @@ const FeeManagementSystem: React.FC = () => {
     semester: Semester,
     semesterFees: FeeRecord[]
   ) => {
+    console.log("hello from semster", semester);
+    console.log("hello from Fee Record", semesterFees);
     const startDate = new Date(semester.startDate);
     const endDate = new Date(semester.endDate);
     const payments: any[] = [];
@@ -242,9 +284,12 @@ const FeeManagementSystem: React.FC = () => {
           ? monthlyPayments[paymentIndex]
           : null;
 
+      const monthIndex = current.getMonth(); // 0–11
+      const year = current.getFullYear();
+
       const lateFine = monthPayment
         ? monthPayment.lateFine
-        : calculateLateFine(dueDate.toISOString(), semester);
+        : calculateLateFine(monthIndex, year, semester);
 
       payments.push({
         id: monthPayment?.id,
@@ -410,6 +455,8 @@ const FeeManagementSystem: React.FC = () => {
         unpaid.push(student);
         return;
       }
+
+      console.log("xyz", semester);
 
       // Generate payments to check against
       const payments = generateMonthlyPayments(semester, student.fees);

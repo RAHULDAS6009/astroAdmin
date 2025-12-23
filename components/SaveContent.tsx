@@ -17,7 +17,7 @@ export default function SaveContent({ title }: { title: string }) {
       const token = localStorage.getItem("admin_token"); // or wherever you store it
 
       const res = await fetch(
-        `https://api.rahuldev.live/api/v1/admin/cms/${section}`,
+        `http://localhost:5000/api/v1/admin/cms/${section}`,
         {
           method: "PUT",
           headers: {
@@ -46,10 +46,6 @@ export default function SaveContent({ title }: { title: string }) {
 
       <div className="flex gap-5">
         <Editor onChange={(content: string) => setHtml(content)} />
-
-        {title !== "My Philosophy Para" && title !== "My Blessing Para" && (
-          <ImageUpload onFileChange={setImageUrl} />
-        )}
       </div>
 
       <button
