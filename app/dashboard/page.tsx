@@ -7,15 +7,14 @@ import AdminBannerPage from "@/components/BannerUpload";
 import BatchPanel from "@/components/BatchPanel";
 import BookingPanel from "@/components/BookingPanel";
 import BranchManagementPage from "@/components/BranchManagement";
-import CmsEditor from "@/components/CmsEditor";
 import CourseCreateForm from "@/components/CourseCreate";
 import CoursesPanel from "@/components/CoursePanel";
 import CreateCourse from "@/components/CreateCourse";
 import FeesPanel from "@/components/FeesPanel";
+import AdminGalleryPage from "@/components/GalleryPage";
 import HomePage from "@/components/HomePage";
 import MaterialsPanel from "@/components/MaterialPanel";
 import ReviewsPanel from "@/components/ReviewsPanel";
-import SaveContent from "@/components/SaveContent";
 import SideBar from "@/components/SideBar";
 import StudentsTable from "@/components/StudentTable";
 import { useState } from "react";
@@ -29,6 +28,7 @@ const SECTIONS = [
   "AdmissionPage",
   "AdminSchedulePage",
   "CreateCourse",
+  "GalleryPage",
   "Study Materials",
   "Fees Management",
   "BranchManagementPage",
@@ -78,6 +78,7 @@ export default function AdminDashboard() {
           {section === "AdminBannerUpload" && <AdminBannerPage />}
 
           {section === "AdminAlumniPage" && <AdminAlumniPage />}
+          {section === "GalleryPage" && <AdminGalleryPage />}
 
           {section === "BranchManagementPage" && <BranchManagementPage />}
           {section === "CourseCreateForm" && <CourseCreateForm />}
